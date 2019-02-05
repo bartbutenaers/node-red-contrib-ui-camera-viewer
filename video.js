@@ -27,34 +27,18 @@ module.exports = function(RED) {
      function HTML(config) { 
         // The configuration is a Javascript object, which needs to be converted to a JSON string
         var configAsJson = JSON.stringify(config);
-
-        // var html = String.raw`
-        // <input type='text' style='color:` + config.textColor + `;' ng-init='init(` + configAsJson + `)' ng-model='textContent' ng-change='change()'>
-        // `;
-        // return html;
-
-        //var html = String.raw`
-        //<input type='text' style='color:` + config.textColor + `;' ng-init='init(` + configAsJson + `)' ng-model='textContent' ng-keydown='enterkey($event)'>
-        //`;
         
+	// See https://stackoverflow.com/questions/40324916/video-tag-embedded-in-svg
         var html = String.raw`
         <svg version="1.1" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="border: 1px solid black;">
-            <g>
-                <g transform="translate(151,104) scale(1,1)">
-                    <rect x="0" y="0" width="300" height="200"></rect>
-                    <foreignObject x="-151" y="-104" width="500" height="400">
-                        <video width="300" height="200" controls="" style="position: fixed; left: 151px; top: 104px;">
-                            <source src="http://techslides.com/demos/sample-videos/small.mp4" type="video/mp4">
-                        </video>
-                    </foreignObject>
-                </g>
-            </g>
+            <rect x="0" y="0" width="300" height="200"></rect>
+            <foreignObject x="-151" y="-104" width="500" height="400">
+                <video width="300" height="200" controls="" style="position: fixed; left: 151px; top: 104px;">
+                    <source src="http://techslides.com/demos/sample-videos/small.mp4" type="video/mp4">
+                </video>
+            </foreignObject>
         </svg>
         `;
-        
-        // See https://stackoverflow.com/questions/40324916/video-tag-embedded-in-svg
-        
-        //<img width=\"16\" height=\"16\" alt=\"stream test\" src=\"data:image/jpg;base64,{{msg.payload}}\" />
         
         return html;
     };
