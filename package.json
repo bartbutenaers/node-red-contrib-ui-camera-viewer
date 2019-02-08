@@ -1,7 +1,7 @@
 {
-  "name": "node-red-contrib-ui-video",
+  "name": "node-red-contrib-ui-camera",
   "version": "0.0.1",
-  "description": "A Node-RED widget node to show video in the dashboard",
+  "description": "A Node-RED widget node to show camera footage in the dashboard",
   "dependencies": {},
   "author": "Bart Butenaers (https://github.com/bartbutenaers)",
   "license": "Apache-2.0",
@@ -15,12 +15,12 @@
     "camera"
   ],
   "bugs": {
-    "url":"https://github.com/bartbutenaers/node-red-contrib-ui-video/issues"
+    "url":"https://github.com/bartbutenaers/node-red-contrib-ui-camera/issues"
   },
-  "homepage":"https://github.com/bartbutenaers/node-red-contrib-ui-video",
+  "homepage":"https://github.com/bartbutenaers/node-red-contrib-ui-camera",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bartbutenaers/node-red-contrib-ui-video.git"
+    "url": "git+https://github.com/bartbutenaers/node-red-contrib-ui-camera.git"
   },
   "node-red": {
     "nodes": {
