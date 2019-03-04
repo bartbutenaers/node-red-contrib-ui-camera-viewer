@@ -77,7 +77,7 @@ module.exports = function(RED) {
                         $scope.config = config;
                         
                         $scope.shapes = new Map();
-                        
+                        $scope.clickables = new Map();
                         
                         
                         $scope.canvas = document.getElementById('cameraCanvas')
@@ -160,7 +160,6 @@ module.exports = function(RED) {
                                             var yi = shape.points[i].y;
                                             var xj = shape.points[j].x;
                                             var yj = shape.points[j].y;
-
                                             var intersect = ((yi > mouseY) != (yj > mouseY)) && (mouseX < (xj - xi) * (mouseY - yi) / (yj - yi) + xi);
                                             if (intersect) {
                                                 inside = !inside;
@@ -207,54 +206,90 @@ module.exports = function(RED) {
                                     details.vertical = "top";
                                     details.x = horizontalMargin;
                                     details.y = verticalMargin;
+                                    details.top = 0;
+                                    details.bottom = imageHeight / 3;
+                                    details.left = 0;
+                                    details.right = imageWidth / 3;
                                     break;
                                 case "area12":
                                     details.horizontal = "center";
                                     details.vertical = "top";
                                     details.x = imageWidth / 2;
                                     details.y = verticalMargin;
+                                    details.top = 0;
+                                    details.bottom = imageHeight / 3;
+                                    details.left = imageWidth / 3;
+                                    details.right = imageWidth * 2 / 3;
                                     break;
                                 case "area13":
                                     details.horizontal = "right";
                                     details.vertical = "top";
                                     details.x = imageWidth - horizontalMargin;
                                     details.y = verticalMargin;
+                                    details.top = 0;
+                                    details.bottom = imageHeight / 3;
+                                    details.left = imageWidth * 2 / 3;
+                                    details.right = imageWidth;
                                     break;
                                 case "area21":
                                     details.horizontal = "left";
                                     details.vertical = "middle";
                                     details.x = horizontalMargin;
                                     details.y = imageHeight / 2;
+                                    details.top = imageHeight / 3;
+                                    details.bottom = imageHeight * 2 / 3;
+                                    details.left = 0;
+                                    details.right = imageWidth / 3;
                                     break;
                                 case "area22":
                                     details.horizontal = "center";
                                     details.vertical = "middle";
                                     details.x = imageWidth / 2;
                                     details.y = imageHeight / 2;
+                                    details.top = imageHeight / 3;
+                                    details.bottom = imageHeight * 2 / 3;
+                                    details.left = imageWidth / 3;
+                                    details.right = imageWidth * 2 / 3;
                                     break;
                                 case "area23":
                                     details.horizontal = "right";
                                     details.vertical = "middle";
                                     details.x = imageWidth - horizontalMargin;
                                     details.y = imageHeight / 2;
+                                    details.top = imageHeight / 3;
+                                    details.bottom = imageHeight * 2 / 3;
+                                    details.left = imageWidth * 2 / 3;
+                                    details.right = imageWidth;
                                     break;
                                 case "area31":
                                     details.horizontal = "left";
                                     details.vertical = "bottom";
                                     details.x = horizontalMargin;
                                     details.y = imageHeight - verticalMargin;
+                                    details.top = imageHeight * 2 / 3;
+                                    details.bottom = imageHeight;
+                                    details.left = 0;
+                                    details.right = imageWidth / 3;
                                     break;
                                 case "area32":
                                     details.horizontal = "center";
                                     details.vertical = "bottom";
                                     details.x = imageWidth / 2;
                                     details.y = imageHeight - verticalMargin;
+                                    details.top = imageHeight * 2 / 3;
+                                    details.bottom = imageHeight;
+                                    details.left = imageWidth / 3;
+                                    details.right = imageWidth * 2 / 3;
                                     break;
                                 case "area33":
                                     details.horizontal = "right";
                                     details.vertical = "bottom";
                                     details.x = imageWidth - horizontalMargin;
                                     details.y = imageHeight - verticalMargin;
+                                    details.top = imageHeight * 2 / 3;
+                                    details.bottom = imageHeight;
+                                    details.left = imageWidth * 2 / 3;
+                                    details.right = imageWidth;
                                     break;
                             }
                             
@@ -421,8 +456,68 @@ module.exports = function(RED) {
                                             $scope.ctx.strokeText(imageWidth + "x" + imageHeight, details.x, details.y );
                                             $scope.ctx.fillText(imageWidth + "x" + imageHeight, details.x, details.y );
                                             break;
-                                        case "ptz":
-                                            // TODO
+                                        case "pt":
+                                            // Show the pan/tilt buttons
+
+                                            
+                                            // TODO top en bottom gebruiken uit de details
+                                            var x = (details.right - details.left) / 2 + details.left;
+                                            var y = (details.bottom - details.top) / 2 + details.top;
+
+                                            // Show a large semi-transparent circle behind the buttons
+                                            $scope.ctx.globalAlpha = 0.5;
+                                            $scope.ctx.beginPath();
+                                            $scope.ctx.arc(x, y, 45, 0, Math.PI * 2, true);
+                                            $scope.ctx.fillStyle = "grey";
+                                            $scope.ctx.fill();
+                                            
+                                            // Show a 'home' button
+                                            $scope.ctx.globalAlpha = 0.7;
+                                            $scope.ctx.beginPath();
+                                            $scope.ctx.arc(x, y, 15, 0, Math.PI * 2, true);
+                                            $scope.ctx.fillStyle = "grey";
+                                            $scope.ctx.fill();
+                                            //TODO$scope.clickables.set("home_position", TODO het path registreren);
+                                            
+                                            // The buttons should have a white shadow, to make sure they are visible on light backgrounds
+                                            $scope.ctx.globalAlpha = 1.0;
+                                            $scope.ctx.strokeStyle = "black";
+                                            $scope.ctx.shadowColor = "white";
+                                            $scope.ctx.shadowBlur = 2;
+                                            
+                                            // Show an 'up' button
+                                            $scope.ctx.beginPath();
+                                            $scope.ctx.moveTo(x-5, y - 30);
+                                            $scope.ctx.lineTo(x, y - 35);
+                                            $scope.ctx.lineTo(x+5, y - 30);
+                                            $scope.ctx.stroke();
+
+                                            // Show a 'down' button
+                                            $scope.ctx.beginPath();
+                                            $scope.ctx.moveTo(x-5, y + 30);
+                                            $scope.ctx.lineTo(x, y + 35);
+                                            $scope.ctx.lineTo(x+5, y + 30);
+                                            $scope.ctx.stroke();
+                                            
+                                            // Show a 'left' button
+                                            $scope.ctx.beginPath();
+                                            $scope.ctx.moveTo(x-30, y-5);
+                                            $scope.ctx.lineTo(x-35, y);
+                                            $scope.ctx.lineTo(x-30, y+5);
+                                            $scope.ctx.stroke();
+                                                                                        
+                                            // Show a 'right' button
+                                            $scope.ctx.beginPath();
+                                            $scope.ctx.moveTo(x+30, y-5);
+                                            $scope.ctx.lineTo(x+35, y);
+                                            $scope.ctx.lineTo(x+30, y+5);
+                                            $scope.ctx.stroke();
+                                            
+                                            $scope.ctx.shadowBlur = 0;
+
+                                            break;
+                                        case "zoom":
+                                            // Show the zoom in/out buttons
                                             break;
                                         case "stat":
                                             // TODO
@@ -492,18 +587,15 @@ module.exports = function(RED) {
                             for (var i = 0; i < msg.payload.length; i++) {
                                 var element = null;
                                 var action = msg.payload[i];
-
                                 if (action.name) {
                                     // If the element exist already, we will delete it first
                                     element = document.getElementById(action.name);
                                 }
                                 
                                 var svgElement = document.getElementById("camera-" + $scope.config.id);
-
                                 switch (action.action) {
                                     case "draw":
                                         //var strokeColor =
-
                                         switch (action.type) {
                                             case "polygon":
                                                 var points = "";
@@ -527,11 +619,8 @@ module.exports = function(RED) {
                                                 polygon.setAttributeNS(null, "fill", action.fillColor);
                                                 polygon.setAttributeNS(null, "stroke", action.color);
                                                 svgElement.appendChild(polygon);
-
-
                                                 // De showpoints moet markers tekenen
                                                 // https://vanseodesign.com/web-design/svg-markers/
-
                                                 // TODO polygon tekenen
                                                 break;
                                             case "object":
@@ -541,28 +630,18 @@ module.exports = function(RED) {
                                                 var fillColor = action.fillColor;
                                                 var showPoints = action.showPoints; 
                                                 var fillPattern = action.fillPattern;
-
                                                 // Voor pattern zie https://css-tricks.com/simple-patterns-for-separation/
                                                 // http://iros.github.io/patternfills/sample_svg.html
                                                 // https://github.com/iros/patternfills (npm install -g patternfills)
                                                 // https://stackoverflow.com/questions/13378797/how-to-dynamically-change-the-image-pattern-in-svg-using-javascript
-
                                                 //TODO rectangle tekenen
-
-
                                         }
-
                                         break;
-
                                     case "delete":
-
                                         if (action.name) {
-
                                             // TODO enkel in de children van de SVG zoeken ...
                                             var elem = document.getElementById(action.name);
-
                                             elem.parentNode.removeChild(elem);
-
                                         }
                                         break;
                                 }
