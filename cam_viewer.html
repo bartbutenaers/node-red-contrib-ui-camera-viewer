@@ -1,0 +1,376 @@
+<!--
+  Copyright 2019, Bart Butenaers
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+    
+<script type="text/javascript">
+    RED.nodes.registerType('ui_cam_viewer',{
+        category: 'dashboard',
+        color: 'rgb( 63, 173, 181)',
+        defaults: {
+            group: {type: 'ui_group', required:true},
+            order: {value: 0},
+            width: {
+                value: 0,
+                validate: function(v) {
+                    var valid = true
+                    var width = v||0;
+                    var currentGroup = $('#node-input-group').val()|| this.group;
+                    var groupNode = RED.nodes.node(currentGroup);
+                    valid = !groupNode || +width <= +groupNode.width;
+                    $("#node-input-size").toggleClass("input-error",!valid);
+                    return valid;
+                }},
+            height: {value: 0},
+            name: {value: ''},
+            imageField: {value: "payload"},
+            url: {value: ''},
+            source: {value: "fetch"},
+            font: {value: "Arial"},
+            fontSize: {value: 12},
+            aspectratio: {value: true},
+            autoplay: {value: true},
+            widgetsInfo: {value:[{number: 1, type:"text", horizontal: 50, vertical: 50, alignment: "center"}]},
+        },
+        inputs:1,
+        outputs:1,
+        icon: "cog.png",
+        paletteLabel:"Camera viewer",
+        label: function() {
+            return this.name || "Camera viewer";
+        },
+        oneditprepare: function() {
+            var node = this;
+
+            function addTableRow(widget, rowNr) {
+                // Create a new table row (that will be appended later on to the table body)
+                var row = $('<tr/>').css("border-top", "1px solid #ccc");
+
+                // Create all the columns/cells for the table row...
+                
+                // Column 'widget type'                 
+                var typeCell = $('<td/>',{align:"center", valign:"middle"}).css({"padding-bottom":"10px", "padding-top":"10px"}).appendTo(row);
+                var typeElement = $('<select/>').css({"width":"110px"}).addClass("widgetinfo-type-element").appendTo(typeCell);
+                typeElement.append($("<option></option>").val('fps').text("FPS"));
+                typeElement.append($("<option></option>").val('res').text("Resolution"));
+                typeElement.append($("<option></option>").val('pt').text("Pan/Tilt"));
+                typeElement.append($("<option></option>").val('zoom').text("Zoom"));
+                typeElement.append($("<option></option>").val('text').text("Text"));
+                typeElement.append($("<option></option>").val('stst').text("Start/stop"));
+                typeElement.val(widget.type);      
+
+                // Column 'horizontal'
+                var horizontalCell = $('<td/>',{align:"center", valign:"middle"}).css({"padding-bottom":"10px", "padding-top":"10px", "width":"60px"}).appendTo(row);
+                var horizontalElement = $('<input/>',{type:"number", min:"0"}).css({"width":"50px"}).addClass("widgetinfo-horizontal-element").appendTo(horizontalCell);
+                horizontalElement.val(widget.horizontal);               
+
+                // Column 'vertical'
+                var verticalCell = $('<td/>',{align:"center", valign:"middle"}).css({"padding-bottom":"10px", "padding-top":"10px", "width":"60px"}).appendTo(row);
+                var verticalElement = $('<input/>',{type:"number", min:"0"}).css({"width":"50px"}).addClass("widgetinfo-vertical-element").appendTo(verticalCell);
+                verticalElement.val(widget.vertical);
+
+                // Column 'alignment' (currently containing only a single 'Center' option)
+                var alignmentCell = $('<td/>',{align:"center", valign:"middle"}).css({"padding-bottom":"10px", "padding-top":"10px", "width":"85px"}).appendTo(row);
+                var alignmentElement = $('<select/>').css({"width":"85px"}).addClass("widgetinfo-alignment-element").appendTo(alignmentCell);
+                alignmentElement.append($("<option></option>").val('center').text("Center"));
+                alignmentElement.attr("disabled", "disabled");
+
+                // A 'delete' button at the end of each row
+                var deleteButtonCell = $('<td/>',{align:"center", valign:"middle"}).css({"padding-bottom":"10px", "padding-top":"10px", "width":"10px"}).appendTo(row);
+                var deleteButton = $('<a/>',{href:"#",class:"btn btn-mini", style:"margin-left: 5px;"}).appendTo(deleteButtonCell);
+                $('<i/>',{class:"fa fa-remove"}).appendTo(deleteButton);
+                deleteButton.click(function() {
+                    $(this).parent().parent().remove()
+                });
+
+                $("#node-input-widget-table").append(row);
+            }
+
+            // Add a click handler to the 'add' button, to add a new row - with default values - in the table
+            $("#node-input-add-widget").click(function() {
+               var widgetTableRows = $("#node-input-widget-table").find('tbody').find('tr');
+                var newRowNr = widgetTableRows.length + 1;
+                var newwidget = {number: 1, type:"text", horizontal: 50, vertical: 50, alignment: "center"};
+
+                addTableRow(newwidget, newRowNr);
+            });
+debugger;
+            // Show all the values (from the 'widgetsInfo' field) as a row in the table
+            for (var i=0;i<this.widgetsInfo.length;i++) {
+                var widget = this.widgetsInfo[i];
+                addTableRow(widget, i+1);
+            }
+           
+            // Load the JQuery plugin for a scrollable table body, with fixed table header (https://github.com/lai32290/TableHeadFixer).
+            // See explantation about third party Js libraries in Node-Red on https://groups.google.com/d/msg/node-red/AgLNx0PpuBA/ZBfKYZ9GBAAJ
+            $.getScript('cam_viewer/js/tableHeadFixer.js').done(function(data, textStatus, jqxhr) {
+                console.log("JQuery plugin loaded");
+
+                //$("#node-input-widget-table").scrollTableBody({rowsToDisplay:5});
+                $("#node-input-widget-table").tableHeadFixer();
+            })
+            .fail(function(jqxhr, settings, exception ) {
+                console.log("JQuery plugin loading failed");
+                console.log(exception);
+                console.log(exception.stack);
+            });
+            
+            /*
+            // Show for every source type only the relevant input fields
+            $("#node-input-source").change(function() {
+                var source = $("#node-input-source").val();
+                
+                if (source === "fetch") {
+                    $(".source-fetch").show();
+                    $(".source-push").hide();
+                }
+                else {
+                    $(".source-push").show();
+                    $(".source-fetch").hide();
+                }
+            });
+            */
+            
+            // Show the imageField value in a typedinput element (dropdown with only 'msg')
+            var value = $("#node-input-imageField").val() || 'payload';
+            $("#node-input-typed-imageField").typedInput({types:['msg']});
+            $("#node-input-typed-imageField").typedInput('type','msg');
+            $("#node-input-typed-imageField").typedInput('value',value);
+ 
+            // Show the inputField value in a typedinput element (dropdown with only 'msg' and 'str')
+            var value = $("#node-input-inputField").val() || 'payload';
+            $("#node-input-typed-inputField").typedInput({types:['msg', 'str']});
+            $("#node-input-typed-inputField").typedInput('type','msg');
+            $("#node-input-typed-inputField").typedInput('value','text');
+            
+            // Show the outputField value in a typedinput element (dropdown with only 'msg')
+            var value = $("#node-input-outputField").val() || 'payload';
+            $("#node-input-typed-outputField").typedInput({types:['msg']});
+            $("#node-input-typed-outputField").typedInput('type','msg');
+            $("#node-input-typed-outputField").typedInput('value',value);
+            
+            $("#node-input-cellContent").change(function() {
+                var cellContent = $("#node-input-cellContent").val();
+                
+                // When the cell content (combobox) changes, the new cell content type should be displayed as cell button text
+                if (node.selectedCellCoordinates) {
+                    var button = $("#node-input-button" + node.selectedCellCoordinates);
+                
+                    // The loaded cell content type should be displayed as the button text
+                    // Show the content type text corresponding to the new selected content type key
+                    var text = contentTypes[cellContent];
+                    button.text(text);
+                }
+                              
+                // When the cell content (combobox) changes, some elements should be hidden or showed
+                switch (cellContent) {
+                    case "none": // TODO deze moet weg
+                        $("#node-input-displayMode-div").hide();
+                        $("#node-input-typed-inputField-div").hide();
+                        $("#node-input-typed-outputField-div").hide();
+                        $("#node-input-font-div").hide();
+                        break;                    
+                    case "fps":
+                        $("#node-input-displayMode-div").show();
+                        $("#node-input-typed-inputField-div").hide();
+                        $("#node-input-typed-outputField-div").hide();
+                        $("#node-input-font-div").show();
+                        break;            
+                    case "res":
+                        $("#node-input-displayMode-div").show();
+                        $("#node-input-typed-inputField-div").hide();
+                        $("#node-input-typed-outputField-div").hide();
+                        $("#node-input-font-div").show();
+                        break;                    
+                    case "pt":
+                        $("#node-input-displayMode-div").show();
+                        $("#node-input-typed-inputField-div").hide();
+                        $("#node-input-typed-outputField-div").show();
+                        $("#node-input-font-div").hide();
+                        break;                    
+                    case "zoom":
+                        $("#node-input-displayMode-div").show();
+                        $("#node-input-typed-inputField-div").hide();
+                        $("#node-input-typed-outputField-div").show();
+                        $("#node-input-font-div").hide();
+                        break;                    
+                    case "text":
+                        $("#node-input-displayMode-div").show();
+                        $("#node-input-typed-inputField-div").show();
+                        $("#node-input-typed-outputField-div").hide();
+                        $("#node-input-font-div").show();
+                        break;                             
+                    case "stst":
+                        $("#node-input-displayMode-div").show();
+                        $("#node-input-typed-inputField-div").hide();
+                        $("#node-input-typed-outputField-div").show();
+                        $("#node-input-font-div").hide();
+                        break;                
+                }
+            });
+        
+            $("#node-input-size").elementSizer({
+                width: "#node-input-width",
+                height: "#node-input-height",
+                group: "#node-input-group"
+            });
+            
+            // Make sure cell 11 is selected by default
+            $("#node-input-button11").click();
+        },
+        oneditsave: function() {
+            var node = this;
+            
+            // Copy the imageField value from the typedinput element to the imageField element
+            var value = $("#node-input-typed-imageField").typedInput('value');
+            $("#node-input-imageField").val(value);
+                      
+            node.widgetsInfo = [];
+            var widgetTableRows = $("#node-input-widget-table").find('tbody').find('tr');
+debugger;
+            // For each table row, a new row will be added in the 'widgetsInfo' field (and the values will be copied from the table)
+            widgetTableRows.each(function(i) {
+                var widget = $(this);
+                node.widgetsInfo.push({
+                    type:       widget.find(".widgetinfo-type-element").val(),
+                    horizontal: widget.find(".widgetinfo-horizontal-element").val(),
+                    vertical:   widget.find(".widgetinfo-vertical-element").val(),
+                    alignment:  widget.find(".widgetinfo-alignment-element").val(),
+                 });
+            });
+         }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="ui_cam_viewer">
+    <div class="form-row" id="template-row-group">
+        <label for="node-input-group"><i class="fa fa-table"></i> Group</span></label>
+        <input type="text" id="node-input-group">
+    </div>    
+    <div class="form-row" id="template-row-size">
+        <label><i class="fa fa-object-group"></i> Size</span></label>
+        <input type="hidden" id="node-input-width">
+        <input type="hidden" id="node-input-height">
+        <button class="editor-button" id="node-input-size"></button>
+    </div>
+    </br>
+    <div class="form-row">
+        <label for="node-input-source"><i class="fa fa-clock-o"></i> Source</label>
+        <select id="node-input-source">
+            <option value="fetch">URL (fetch)</option>
+            <option value="push">Message (push)</option>
+        </select>
+    </div>
+    <div class="form-row source-fetch">
+        <label for="node-input-url"><i class="fa fa-globe"></i> URL</label>
+        <input id="node-input-url" type="text" placeholder="http://">
+    </div>
+    <div class="form-row source-push">
+        <label for="node-input-typed-imageField"><i class="fa fa-list"></i> Image field</label>
+        <input id="node-input-typed-imageField" type="text" style="width: 70%">
+        <input id="node-input-imageField" type="hidden">
+    </div>
+    </br>
+    <!-- TODO test -->
+    <div class="form-row">
+        <div id="jsoneditor" style="width: 400px; height: 400px;"></div>
+    </div>
+    </br>
+    <div class="form-row" style="margin-bottom: 0px;">
+        <label for="node-input-func"><i class="fa fa-th"></i> Widgets</label>
+        <input type="hidden" id="node-input-func">
+    </div>
+    <div class="form-row">
+        <input type="hidden" id="node-input-widgets"/>
+        <div id="node-input-widget-container-div" style="border-radius: 5px; height: 280px; padding-bottom: 5px; border: 1px solid #ccc;">                  
+            <table id="node-input-widget-table" width="100%">
+                <thead>
+                    <tr>
+                        <th align="center" valign="middle" border="none" style="padding: 15px;">Widget type</th>               
+                        <th align="center" valign="middle" border="none" style="padding: 15px;">Horizontal (%)</th>
+                        <th align="center" valign="middle" border="none" style="padding: 15px;">Vertical (%)</th>
+                        <th align="center" valign="middle" border="none" style="padding: 15px;">Alignment</th>
+                    </tr>
+                </thead>
+                <tfoot>
+                </tfoot>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <a href="#" class="btn btn-mini" id="node-input-add-widget" style="margin-top: 4px;"><i class="fa fa-plus"></i> Add</a>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <label for="node-input-cellContent"><i class="fa fa-th"></i> Cell content</label>
+        <select id="node-input-cellContent">              
+        </select>
+    </div>
+    <div class="form-row" id="node-input-displayMode-div">
+        <label>&nbsp;</label>
+        <label for="node-input-displayMode"><i class="fa fa-mouse-pointer"></i> Display mode</label>
+        <select id="node-input-displayMode">
+            <option value="always">Always</option>
+            <option value="hoover">On mouse hoover</option>                
+        </select>
+    </div>
+    <div class="form-row" id="node-input-typed-inputField-div">
+        <!--<label>&nbsp;</label>-->
+        <label for="node-input-typed-inputField"><i class="fa fa-list"></i> Input field</label>
+        <input id="node-input-typed-inputField" type="text" style="width: 50%">
+        <input id="node-input-inputField" type="hidden">
+    </div>
+    <div class="form-row" id="node-input-typed-outputField-div">
+        <label>&nbsp;</label>
+        <label for="node-input-typed-outputField"><i class="fa fa-list"></i> Output field</label>
+        <input id="node-input-typed-outputField" type="text" style="width: 50%">
+        <input id="node-input-outputField" type="hidden">
+    </div>
+    <div class="form-row" id="node-input-font-div">
+        <label>&nbsp;</label>
+        <label for="node-input-font"><i class="fa fa-clock-o"></i> Font</label>
+        <select id="node-input-font" style="width:120px;">
+            <option value="Arial">Arial</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Times">Times</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Courier">Courier</option>            
+            <option value="Verdana">Verdana</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Palatino">Palatino</option>
+            <option value="Garamond">Garamond</option>
+            <option value="Bookman">Bookman</option>
+            <option value="Comic Sans MS">Comic Sans MS</option>
+            <option value="Trebuchet MS">Trebuchet MS</option>
+            <option value="Arial Black">Arial Black</option>
+            <option value="Impact">Impact</option>
+        </select>
+        <input type="number" id="node-input-fontSize" style="width:70px;">
+        <span>px</span>
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-aspectratio" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-aspectratio" style="width:50%;"> Keep aspect ratio</label>
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-autoplay" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-autoplay" style="width:50%;"> Start playing automatically</label>
+    </div>
+    </br>
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+<script type="text/x-red" data-help-name="ui_cam_viewer">
+    <p>A Node-RED widget node to view camera footage in the dashboard.</p>
+</script>
