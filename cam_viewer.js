@@ -103,6 +103,12 @@ module.exports = function(RED) {
                             const svgns = "http://www.w3.org/2000/svg";
                             const svgxlink = "http://www.w3.org/1999/xlink";
                             
+                            // At startup, show a 'no camera' image
+                            // TODO Credit the author by putting on of the following two links on my readme page:
+                            //     <div>Icon made from <a href="http://www.onlinewebfonts.com/icon">Icon Fonts</a> is licensed by CC BY 3.0</div>
+                            //     <a href="http://www.onlinewebfonts.com">oNline Web Fonts</a>
+                            $scope.imgElement.setAttributeNS(svgxlink, 'href', "cam_viewer/resources/no_camera.png");
+                            
                             // ===================================================================================
                             // Show the specified widgets at the specified locations in the SVG drawing
                             // ===================================================================================
@@ -125,6 +131,7 @@ module.exports = function(RED) {
                             var widgetElement;
                             var symbolElement;
                             var useElement;
+                            var color1, color2, color3;
                             
                             for (var i = 0; i < $scope.config.widgetsInfo.length; i++) {
                                 var widgetInfo = $scope.config.widgetsInfo[i];
@@ -132,8 +139,10 @@ module.exports = function(RED) {
    // TODO test verwijderen
    widgetInfo.font = "Arial"
   widgetInfo.fontsize = 12 
-  widgetInfo.type = "res"
+  widgetInfo.type = "led"
   widgetInfo.displayMode = "always"
+  widgetInfo.presetNumber = "6"
+  widgetInfo.ledColor = "red"
                                 // All SVG elements required to draw the widget, should be added as child elements to the 'symbol'.
                                 // The symbol will represent the widget in the ORIGIN, since it will be later on 'use'd at the required
                                 // location inside the SVG drawing...
@@ -349,6 +358,56 @@ module.exports = function(RED) {
                                     case "zoom":
                                         // TODO Show the zoom in/out buttons
                                         break;
+                                    case "preset":
+                                        // Create an SVG group, to treat all the elements as a single 'preset' widget
+                                        var groupElement = document.createElementNS(svgns, 'g');
+                                        $scope.defElement.appendChild(groupElement);
+
+                                        // Show a round button
+                                        svgElement = document.createElementNS(svgns, "circle");
+                                        svgElement.setAttributeNS(null, 'cx', 0);
+                                        svgElement.setAttributeNS(null, 'cy', 0);
+                                        svgElement.setAttributeNS(null, 'r', 15);
+                                        svgElement.setAttributeNS(null, 'fill', 'grey');
+                                        svgElement.setAttributeNS(null, 'opacity', '0.5'); // 0.0. is fully transparent
+                                        groupElement.appendChild(svgElement);
+                                        
+                                        // Show a number in the button
+                                        svgElement = document.createElementNS(svgns, 'text');
+                                        svgElement.setAttributeNS(null, 'x', 0);
+                                        svgElement.setAttributeNS(null, 'y', 0);
+                                        svgElement.setAttributeNS(null, 'stroke', 'black');
+                                        svgElement.setAttributeNS(null, 'stroke-width', '3px');
+                                        svgElement.setAttributeNS(null, 'fill', 'white');
+                                        svgElement.setAttributeNS(null, 'font-size', widgetInfo.fontSize)
+                                        svgElement.setAttributeNS(null, "font-family", widgetInfo.font);
+                                        svgElement.setAttributeNS(null, "font-weight", "bold");
+                                        svgElement.setAttributeNS(null, 'text-anchor', 'middle'); // horizontal
+                                        svgElement.setAttributeNS(null, 'dominant-baseline', 'middle'); // vertical
+                                        svgElement.setAttributeNS(null, 'paint-order', 'stroke');
+                                        svgElement.innerHTML = widgetInfo.presetNumber;
+                                        groupElement.appendChild(svgElement);
+                                        
+                                        // Show an invisible circle on top of the 'preset' button, to capture mouse events in the entire area
+                                        svgElement = document.createElementNS(svgns, "circle");
+                                        svgElement.setAttributeNS(null, 'cx', 0);
+                                        svgElement.setAttributeNS(null, 'cy', 0);
+                                        svgElement.setAttributeNS(null, 'r', 15);
+                                        svgElement.setAttributeNS(null, 'stroke', 'none');
+                                        svgElement.setAttributeNS(null, 'fill', 'white');
+                                        svgElement.setAttributeNS(null, 'opacity', '0.0');
+                                        svgElement.setAttributeNS(null, 'cursor', 'pointer');
+                                        groupElement.appendChild(svgElement);
+                                        
+                                        svgElement.addEventListener("click", function() {
+                                            // The content of the message (to the server) should contain the preset number
+                                            handleClick('preset_' + widgetInfo.presetNumber);                                             
+                                        }, false);
+                                        
+                                        // Make sure the groupElement is used below by the 'use' element
+                                        svgElement = groupElement;
+                                        
+                                        break;
                                     case "stst":
                                         var cell = {}; // TODO verwijderen
                                         cell.centerX = 0;
@@ -444,12 +503,95 @@ module.exports = function(RED) {
                                         svgElement = groupElement;
                                         
                                         break;
+                                    case "led":
+                                        // Create an SVG group, to treat all the elements as a single 'led' widget
+                                        var groupElement = document.createElementNS(svgns, 'g');
+                                        $scope.defElement.appendChild(groupElement);
+                                        
+                                        // Led lights used from https://en.wikipedia.org/wiki/File:ButtonGreen.svg
+                                        switch (widgetInfo.ledColor) {
+                                            case "green":
+                                                color1 = "#9f9";
+                                                color2 = "#0e0";
+                                                color3 = "#0d0";
+                                                break;
+                                            case "red":
+                                                color1 = "#f99";
+                                                color2 = "#f11";
+                                                color3 = "#c00";
+                                                break;                                            
+                                            case "blue":
+                                                color1 = "#99f";
+                                                color2 = "#00e";
+                                                color3 = "#00d";
+                                                break;                                            
+                                            case "orange":
+                                                color1 = "#fd9";
+                                                color2 = "#fb3";
+                                                color3 = "#f80";
+                                                break;                                            
+                                            case "yellow":
+                                                color1 = "#ff9";
+                                                color2 = "#ee0";
+                                                color3 = "#cc0";
+                                                break;                                            
+                                            case "white":
+                                                color1 = "#fff";
+                                                color2 = "#ddd";
+                                                color3 = "#bbb";
+                                                break;                                            
+                                            case "white":
+                                                color1 = "#ccc";
+                                                color2 = "#777";
+                                                color3 = "#555";
+                                                break;                                                                                  
+                                        }
+                         
+                                        var gradientId = "cam_viewer_" + $scope.config.id + "_grad_" + i;
+
+                                        // Create a radial gradient
+                                        var gradientElement = document.createElementNS(svgns, "radialGradient");
+                                        gradientElement.setAttributeNS(null, "id", gradientId);
+                                        gradientElement.setAttributeNS(null, 'gradientUnits', 'objectBoundingBox');
+                                        groupElement.appendChild(gradientElement);
+
+                                        // The gradient has a start color
+                                        var svgElement = document.createElementNS(svgns, 'stop');
+                                        svgElement.setAttributeNS(null, 'offset', '0%');
+                                        svgElement.setAttributeNS(null, 'stop-color', color1);
+                                        gradientElement.appendChild(svgElement);
+
+                                        // The gradient has an intermediate color
+                                        var svgElement = document.createElementNS(svgns, 'stop');
+                                        svgElement.setAttributeNS(null, 'offset', '70%');
+                                        svgElement.setAttributeNS(null, 'stop-color', color2);
+                                        gradientElement.appendChild(svgElement);
+
+                                        // The gradient has an end color
+                                        var svgElement = document.createElementNS(svgns, 'stop');
+                                        svgElement.setAttributeNS(null, 'offset', '100%');
+                                        svgElement.setAttributeNS(null, 'stop-color', color3);
+                                        gradientElement.appendChild(svgElement);
+
+                                        // Show the LED as a circle with the radial gradient
+                                        svgElement = document.createElementNS(svgns, "circle");
+                                        svgElement.setAttributeNS(null, 'cx', 0);
+                                        svgElement.setAttributeNS(null, 'cy', 0);
+                                        svgElement.setAttributeNS(null, 'r', 10);
+                                        svgElement.setAttributeNS(null, 'stroke', 'white');
+                                        svgElement.setAttributeNS(null, 'stroke-width', '3px');
+                                        svgElement.setAttributeNS(null, 'fill', 'url(#' + gradientId + ')');           
+                                        svgElement.setAttributeNS(null, 'opacity', '1.0');
+                                        groupElement.appendChild(svgElement);
+
+                                        // Make sure the groupElement is used below by the 'use' element
+                                        svgElement = groupElement;
+                                        
+                                        break;
                                     case "text":
                                         // TODO
                                         break;
                                 }
-                                
-                                // TODO case toevoegen om preset posities toe te laten...
                                 
                                 // Each definition element should have a unique id, that can be used by the 'use' element
                                 var defId = "cam_viewer_" + $scope.config.id + "_" + i; 
@@ -514,7 +656,7 @@ module.exports = function(RED) {
                             // so you don't have search through the DOM tree over and over again ...
                             $scope.svgElement = document.getElementById("cam_svg_" + config.id);
                             $scope.imgElement = document.getElementById("cam_img_" + config.id);
-                            $scope.defElement = document.getElementById("cam_def_" + config.id)
+                            $scope.defElement = document.getElementById("cam_def_" + config.id);
                             
                             debugger;
                             
@@ -828,8 +970,7 @@ module.exports = function(RED) {
 
     RED.nodes.registerType("ui_cam_viewer", UiCamViewerNode);
     
-    // Make all the static resources from this node public available (i.e. third party JQuery plugin tableHeadFixer.js).
-    // TODO is dit nodig?  of gewoon een script file includen op de html
+    // Make all the static resources from this node public available (i.e. third party JQuery plugin tableHeadFixer.js), for the server-side config screen.
     RED.httpAdmin.get('/cam_viewer/js/*', function(req, res){
         var options = {
             root: __dirname /*+ '/lib/'*/,
@@ -837,6 +978,23 @@ module.exports = function(RED) {
         };
        
         // Send the requested file to the client (in this case it will be tableHeadFixer.js)
+        res.sendFile(req.params[0], options)
+    });
+    
+    // By default the UI path in the settings.js file will be in comment:
+    //     //ui: { path: "ui" },
+    // But as soon as the user has specified a custom UI path there, we will need to use that path:
+    //     ui: { path: "mypath" },
+    var uiPath = ((RED.settings.ui || {}).path) || 'ui';
+	
+    // Make all the static resources from this node public available (i.e. no_camera.png file).
+    RED.httpNode.get('/' + uiPath + '/cam_viewer/resources/*', function(req, res){
+        var options = {
+            root: __dirname + '/resources/',
+            dotfiles: 'deny'
+        };
+       
+        // Send the requested file to the client (in this case it will be heatmap.min.js)
         res.sendFile(req.params[0], options)
     });
 }
