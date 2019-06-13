@@ -135,14 +135,7 @@ module.exports = function(RED) {
                             
                             for (var i = 0; i < $scope.config.widgetsInfo.length; i++) {
                                 var widgetInfo = $scope.config.widgetsInfo[i];
-                                                                
-   // TODO test verwijderen
-   widgetInfo.font = "Arial"
-  widgetInfo.fontsize = 12 
-  widgetInfo.type = "led"
-  widgetInfo.displayMode = "always"
-  widgetInfo.presetNumber = "6"
-  widgetInfo.ledColor = "red"
+
                                 // All SVG elements required to draw the widget, should be added as child elements to the 'symbol'.
                                 // The symbol will represent the widget in the ORIGIN, since it will be later on 'use'd at the required
                                 // location inside the SVG drawing...
@@ -156,7 +149,7 @@ module.exports = function(RED) {
                                         svgElement.setAttributeNS(null, 'stroke-width', '3px');
                                         svgElement.setAttributeNS(null, 'fill', 'white');
                                         svgElement.setAttributeNS(null, 'font-size', widgetInfo.fontSize)
-                                        svgElement.setAttributeNS(null, 'font-family', widgetInfo.font);
+                                        svgElement.setAttributeNS(null, 'font-family', widgetInfo.fontFamily);
                                         svgElement.setAttributeNS(null, 'font-weight', 'bold');
                                         svgElement.setAttributeNS(null, 'text-anchor', 'middle'); // horizontal
                                         svgElement.setAttributeNS(null, 'dominant-baseline', 'middle'); // vertical
@@ -181,7 +174,7 @@ module.exports = function(RED) {
                                         svgElement.setAttributeNS(null, 'stroke-width', '3px');
                                         svgElement.setAttributeNS(null, 'fill', 'white');
                                         svgElement.setAttributeNS(null, 'font-size', widgetInfo.fontSize)
-                                        svgElement.setAttributeNS(null, "font-family", widgetInfo.font);
+                                        svgElement.setAttributeNS(null, "font-family", widgetInfo.fontFamily);
                                         svgElement.setAttributeNS(null, "font-weight", "bold");
                                         svgElement.setAttributeNS(null, 'text-anchor', 'middle'); // horizontal
                                         svgElement.setAttributeNS(null, 'dominant-baseline', 'middle'); // vertical
@@ -380,7 +373,7 @@ module.exports = function(RED) {
                                         svgElement.setAttributeNS(null, 'stroke-width', '3px');
                                         svgElement.setAttributeNS(null, 'fill', 'white');
                                         svgElement.setAttributeNS(null, 'font-size', widgetInfo.fontSize)
-                                        svgElement.setAttributeNS(null, "font-family", widgetInfo.font);
+                                        svgElement.setAttributeNS(null, "font-family", widgetInfo.fontFamily);
                                         svgElement.setAttributeNS(null, "font-weight", "bold");
                                         svgElement.setAttributeNS(null, 'text-anchor', 'middle'); // horizontal
                                         svgElement.setAttributeNS(null, 'dominant-baseline', 'middle'); // vertical
@@ -540,7 +533,7 @@ module.exports = function(RED) {
                                                 color2 = "#ddd";
                                                 color3 = "#bbb";
                                                 break;                                            
-                                            case "white":
+                                            case "grey":
                                                 color1 = "#ccc";
                                                 color2 = "#777";
                                                 color3 = "#555";
@@ -605,8 +598,8 @@ module.exports = function(RED) {
                                 useElement = document.createElementNS(svgns, 'use');
                                 useElement.setAttributeNS(svgns, 'href', "#" + defId);
                                 useElement.setAttributeNS(svgxlink, 'xlink:href', "#" + defId);
-                                useElement.setAttributeNS(null, 'x', widgetInfo.horizontal + "%");
-                                useElement.setAttributeNS(null, 'y', widgetInfo.vertical + "%");
+                                useElement.setAttributeNS(null, 'x', widgetInfo.x + "%");
+                                useElement.setAttributeNS(null, 'y', widgetInfo.y + "%");
                                 $scope.svgElement.appendChild(useElement);
                                 
                                 // Check out when the widget should be visible ...
@@ -657,8 +650,6 @@ module.exports = function(RED) {
                             $scope.svgElement = document.getElementById("cam_svg_" + config.id);
                             $scope.imgElement = document.getElementById("cam_img_" + config.id);
                             $scope.defElement = document.getElementById("cam_def_" + config.id);
-                            
-                            debugger;
                             
                             // TODO hieronder rond de setInterval nog een apply zetten om een $timeout na te bootsen
 
@@ -847,8 +838,6 @@ module.exports = function(RED) {
                                 // Ignore undefined msg
                                 return;
                             }
-                            
-                            debugger;
                             
                             // When the images are being pushed, let's get the image from the message
                             if ($scope.config.source === "push") {
