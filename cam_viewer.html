@@ -21,7 +21,7 @@
             width: {
                 value: 0,
                 validate: function(v) {
-                    var valid = true
+                    var valid = true;
                     var width = v||0;
                     var currentGroup = $('#node-input-group').val()|| this.group;
                     var groupNode = RED.nodes.node(currentGroup);
@@ -38,7 +38,7 @@
             fontSize: {value: 12},
             aspectratio: {value: true},
             autoplay: {value: true},
-            widgetsInfo: {value:[{number: 1, type:"text", horizontal: 50, vertical: 50, alignment: "center"}]},
+            widgetsInfo: {value:[{ type:"text", x: 50, y: 50 }]}
         },
         inputs:1,
         outputs:1,
@@ -49,182 +49,226 @@
         },
         oneditprepare: function() {
             var node = this;
-
-            function addTableRow(widget, rowNr) {
-                // Create a new table row (that will be appended later on to the table body)
-                var row = $('<tr/>').css("border-top", "1px solid #ccc");
-
-                // Create all the columns/cells for the table row...
-                
-                // Column 'widget type'                 
-                var typeCell = $('<td/>',{align:"center", valign:"middle"}).css({"padding-bottom":"10px", "padding-top":"10px"}).appendTo(row);
-                var typeElement = $('<select/>').css({"width":"110px"}).addClass("widgetinfo-type-element").appendTo(typeCell);
-                typeElement.append($("<option></option>").val('fps').text("FPS"));
-                typeElement.append($("<option></option>").val('res').text("Resolution"));
-                typeElement.append($("<option></option>").val('pt').text("Pan/Tilt"));
-                typeElement.append($("<option></option>").val('zoom').text("Zoom"));
-                typeElement.append($("<option></option>").val('text').text("Text"));
-                typeElement.append($("<option></option>").val('stst').text("Start/stop"));
-                typeElement.val(widget.type);      
-
-                // Column 'horizontal'
-                var horizontalCell = $('<td/>',{align:"center", valign:"middle"}).css({"padding-bottom":"10px", "padding-top":"10px", "width":"60px"}).appendTo(row);
-                var horizontalElement = $('<input/>',{type:"number", min:"0"}).css({"width":"50px"}).addClass("widgetinfo-horizontal-element").appendTo(horizontalCell);
-                horizontalElement.val(widget.horizontal);               
-
-                // Column 'vertical'
-                var verticalCell = $('<td/>',{align:"center", valign:"middle"}).css({"padding-bottom":"10px", "padding-top":"10px", "width":"60px"}).appendTo(row);
-                var verticalElement = $('<input/>',{type:"number", min:"0"}).css({"width":"50px"}).addClass("widgetinfo-vertical-element").appendTo(verticalCell);
-                verticalElement.val(widget.vertical);
-
-                // Column 'alignment' (currently containing only a single 'Center' option)
-                var alignmentCell = $('<td/>',{align:"center", valign:"middle"}).css({"padding-bottom":"10px", "padding-top":"10px", "width":"85px"}).appendTo(row);
-                var alignmentElement = $('<select/>').css({"width":"85px"}).addClass("widgetinfo-alignment-element").appendTo(alignmentCell);
-                alignmentElement.append($("<option></option>").val('center').text("Center"));
-                alignmentElement.attr("disabled", "disabled");
-
-                // A 'delete' button at the end of each row
-                var deleteButtonCell = $('<td/>',{align:"center", valign:"middle"}).css({"padding-bottom":"10px", "padding-top":"10px", "width":"10px"}).appendTo(row);
-                var deleteButton = $('<a/>',{href:"#",class:"btn btn-mini", style:"margin-left: 5px;"}).appendTo(deleteButtonCell);
-                $('<i/>',{class:"fa fa-remove"}).appendTo(deleteButton);
-                deleteButton.click(function() {
-                    $(this).parent().parent().remove()
-                });
-
-                $("#node-input-widget-table").append(row);
-            }
-
-            // Add a click handler to the 'add' button, to add a new row - with default values - in the table
-            $("#node-input-add-widget").click(function() {
-               var widgetTableRows = $("#node-input-widget-table").find('tbody').find('tr');
-                var newRowNr = widgetTableRows.length + 1;
-                var newwidget = {number: 1, type:"text", horizontal: 50, vertical: 50, alignment: "center"};
-
-                addTableRow(newwidget, newRowNr);
-            });
-debugger;
-            // Show all the values (from the 'widgetsInfo' field) as a row in the table
-            for (var i=0;i<this.widgetsInfo.length;i++) {
-                var widget = this.widgetsInfo[i];
-                addTableRow(widget, i+1);
-            }
-           
-            // Load the JQuery plugin for a scrollable table body, with fixed table header (https://github.com/lai32290/TableHeadFixer).
-            // See explantation about third party Js libraries in Node-Red on https://groups.google.com/d/msg/node-red/AgLNx0PpuBA/ZBfKYZ9GBAAJ
-            $.getScript('cam_viewer/js/tableHeadFixer.js').done(function(data, textStatus, jqxhr) {
-                console.log("JQuery plugin loaded");
-
-                //$("#node-input-widget-table").scrollTableBody({rowsToDisplay:5});
-                $("#node-input-widget-table").tableHeadFixer();
-            })
-            .fail(function(jqxhr, settings, exception ) {
-                console.log("JQuery plugin loading failed");
-                console.log(exception);
-                console.log(exception.stack);
-            });
             
-            /*
-            // Show for every source type only the relevant input fields
-            $("#node-input-source").change(function() {
-                var source = $("#node-input-source").val();
+            function addPropertyRow(container, propertyName) {
+                var propertyRow = $('<div/>',{style:"margin-top:8px;"}).appendTo(container);
+
+                $('<div/>', {style:"display:inline-block;text-align:right; width:120px; padding-right:10px; box-sizing:border-box;"})
+                .text(propertyName)
+                .appendTo(propertyRow);
                 
-                if (source === "fetch") {
-                    $(".source-fetch").show();
-                    $(".source-push").hide();
-                }
-                else {
-                    $(".source-push").show();
-                    $(".source-fetch").hide();
-                }
+                return propertyRow;
+            }
+            
+            $('#node-input-widgets-container').css('min-height','300px').css('min-width','400px').editableList({
+                addItem: function(container, i, opt) {
+                    var widgetInfo = opt;
+                    
+                    // Here we could in the future migrate old rules ...
+                    
+                    // By default the list items will be compressed, so show the expand icon
+                    var expandIcon = "fa fa-expand";
+
+                    // When widgetInfo === {} then we have a new list item (i.e. user pressed the addItem button)
+                    if (Object.keys(widgetInfo).length === 0) {
+                        // Initialize new items in the list
+                        widgetInfo = {
+                            type        : "text",
+                            x           : 50,
+                            y           : 50,
+                            fontFamily  : "Arial",
+                            fontSize    : 12,
+                            presetNumber: 1,
+                            ledColor    : "green"
+                        };
+                        
+                        // New list items should be expanded by default, so show a compress icon.
+                        // This way the user becomes aware which properties the new widget offers...
+                        expandIcon = "fa fa-compress";
+                    }
+                    
+                    container.css({
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap'
+                    });
+                    
+                    // The HEADER ROW of each widget contains the common widget properties:
+                    // - Widget type (dropdown)
+                    // - X position input (%)
+                    // - Y position input (%)
+                    var headerRow = $('<div/>').appendTo(container);
+                    
+                    // Show a click-able expand/compress icon before each header row.
+                    var expandButton = $('<span/>', {style: "margin-left:5px; margin-right:10px;"}).html('<i class="' + expandIcon + '"></i>').appendTo(headerRow);
+                    
+                    $('<span/>', {style: "margin-left:10px; margin-right:10px;"}).text('Widget type').appendTo(headerRow);
+
+                    // Add a drop-down, containing all available widget types
+                    var widgetTypeField = $('<select/>', {class: "node-input-widget-type", style: "width:110px; margin-right:20px;"}).appendTo(headerRow);
+                    widgetTypeField.append($("<option></option>").val('fps').text("FPS"));
+                    widgetTypeField.append($("<option></option>").val('res').text("Resolution"));
+                    widgetTypeField.append($("<option></option>").val('pt').text("Pan/Tilt"));
+                    widgetTypeField.append($("<option></option>").val('zoom').text("Zoom"));
+                    widgetTypeField.append($("<option></option>").val('preset').text("Preset"));
+                    widgetTypeField.append($("<option></option>").val('stst').text("Start/stop"));
+                    widgetTypeField.append($("<option></option>").val('led').text("LED light"));
+                    widgetTypeField.append($("<option></option>").val('text').text("Text"));
+                    widgetTypeField.val(widgetInfo.type);    
+                    
+                    expandButton.click(function(e) {
+                        e.preventDefault();
+                        
+                        // Switch the icon between expand and compress
+                        if (this.firstElementChild.className === "fa fa-expand") {
+                            this.firstElementChild.className = "fa fa-compress";
+                        }
+                        else {
+                            this.firstElementChild.className = "fa fa-expand";
+                        }
+                    
+                        // Only show the relevant widget type properties
+                        widgetTypeField.change();
+                    });
+                    
+                    // Add a 'X position' property row
+                    var xPositionRow = addPropertyRow(container, "X position");
+                    var xField = $('<input/>', {class: "node-input-widget-x", style: "width:52px; margin-right:10px;", type: "number", min: "1", max: "100"}).appendTo(xPositionRow);
+                    xField.val(widgetInfo.x);
+                    $('<span/>').text('%').appendTo(xPositionRow);
+                        
+                    // Add a 'Y position' property row
+                    var yPositionRow = addPropertyRow(container, "Y position");
+                    var yField = $('<input/>', {class: "node-input-widget-y", style: "width:52px; margin-right:10px;", type: "number", min: "1", max: "100"}).appendTo(yPositionRow);
+                    yField.val(widgetInfo.y);
+                    $('<span/>').text('%').appendTo(yPositionRow);
+                        
+                    // Add a 'font family' property row
+                    var fontFamilyRow = addPropertyRow(container, "Font family");
+                    fontFamilyField = $('<select/>', {class: "node-input-widget-fontFamily", style:"width:110px; margin-right:10px;"}).appendTo(fontFamilyRow);
+                    fontFamilyField.append($("<option></option>").val('Arial').text("Arial"));
+                    fontFamilyField.append($("<option></option>").val('Helvetica').text("Helvetica"));
+                    fontFamilyField.append($("<option></option>").val('Times New Roman').text("Times New Roman"));
+                    fontFamilyField.append($("<option></option>").val('Courier').text("Courier"));
+                    fontFamilyField.append($("<option></option>").val('Verdana').text("Verdana"));
+                    fontFamilyField.append($("<option></option>").val('Georgia').text("Georgia"));
+                    fontFamilyField.append($("<option></option>").val('Palatino').text("Palatino"));
+                    fontFamilyField.append($("<option></option>").val('Garamond').text("Garamond"));
+                    fontFamilyField.append($("<option></option>").val('Bookman').text("Bookman"));
+                    fontFamilyField.append($("<option></option>").val('Comic Sans MS').text("Comic Sans MS"));
+                    fontFamilyField.append($("<option></option>").val('Trebuchet MS').text("Trebuchet MS"));
+                    fontFamilyField.append($("<option></option>").val('Arial Black').text("Arial Black"));
+                    fontFamilyField.append($("<option></option>").val('Impact').text("Impact"));
+                    fontFamilyField.val(widgetInfo.fontFamily);
+                        
+                    // Add a 'font size' property row
+                    var fontSizeRow = addPropertyRow(container, "Font size");
+                    var fontSizeField = $('<input/>', {class: "node-input-widget-fontSize", style: "width:50px; margin-right:5px;", type: "number", min: "1", max: "20"}).appendTo(fontSizeRow);
+                    $('<span/>').text('px').appendTo(fontSizeRow);
+                    fontSizeField.val(widgetInfo.fontSize);
+                   
+                    // Add a 'preset number' property row
+                    var presetNumberRow = addPropertyRow(container, "Preset number");
+                    var presetNumberField = $('<input/>', {class: "node-input-widget-presetNumber", style: "width:50px;", type: "number", min: "1", max: "15"}).appendTo(presetNumberRow);
+                    presetNumberField.val(widgetInfo.presetNumber); // TODO moet we ook alle values zetten indien undefined ?????????????
+                    
+                    // Add a 'led color' property row
+                    var ledColorRow = addPropertyRow(container, "Led color");
+                    ledColorField = $('<select/>', {class: "node-input-widget-ledColor", style:"width:110px; margin-right:10px;"}).appendTo(ledColorRow);
+                    ledColorField.append($("<option></option>").val('green').text("Green"));
+                    ledColorField.append($("<option></option>").val('red').text("Red"));
+                    ledColorField.append($("<option></option>").val('blue').text("Blue"));
+                    ledColorField.append($("<option></option>").val('orange').text("Orange"));
+                    ledColorField.append($("<option></option>").val('yellow').text("Yellow"));
+                    ledColorField.append($("<option></option>").val('white').text("White"));
+                    ledColorField.append($("<option></option>").val('grey').text("Grey"));
+                    ledColorField.val(widgetInfo.ledColor);
+
+                    // When the widget type changes, only the relevant property rows should be visible
+                    widgetTypeField.change(function() {
+                        var widgetType = $(this).val();
+                        
+                        xPositionRow.hide();
+                        yPositionRow.hide();
+                        fontFamilyRow.hide();
+                        fontSizeRow.hide();
+                        presetNumberRow.hide();
+                        ledColorRow.hide();
+                        
+                        // When the button shows a 'compress' icon, this means that the list item is currently expanded
+                        // (i.e. that all relevant property rows should be visible)
+                        if (expandButton.children()[0].className === "fa fa-compress") {
+                            // The X and Y location property rows should be visible for all widget types
+                            xPositionRow.show();
+                            yPositionRow.show();
+                        
+                            // Some other property rows should only be visible for specific widget types
+                            switch (widgetType) {
+                                case 'fps':
+                                    fontFamilyRow.show();
+                                    fontSizeRow.show();
+                                    break;
+                                case 'res':
+                                    fontFamilyRow.show();
+                                    fontSizeRow.show();                                
+                                    break;
+                                case 'pt':
+                                    break;
+                                case 'zoom':
+                                    break;
+                                case 'preset':
+                                    fontFamilyRow.show();
+                                    fontSizeRow.show();
+                                    presetNumberRow.show();
+                                    break;
+                                case 'stst':
+                                    break;
+                                case 'led':
+                                    ledColorRow.show();
+                                    break;
+                                case 'text':
+                                    fontFamilyRow.show();
+                                    fontSizeRow.show();                            
+                                    break;
+                            }
+                        }
+                    });
+
+                    // Only show the relevant widget type properties
+                    widgetTypeField.change();
+                },
+                removable: true,
+                sortable: false
             });
-            */
+                        
+            // Show information of every widget in 'this' node into the widget container list
+            for (var i=0; i<this.widgetsInfo.length; i++) {
+                var widgetInfo = this.widgetsInfo[i];
+                $("#node-input-widgets-container").editableList('addItem', widgetInfo);
+            }      
             
             // Show the imageField value in a typedinput element (dropdown with only 'msg')
-            var value = $("#node-input-imageField").val() || 'payload';
+            var imageField = $("#node-input-imageField").val() || 'payload';
             $("#node-input-typed-imageField").typedInput({types:['msg']});
             $("#node-input-typed-imageField").typedInput('type','msg');
-            $("#node-input-typed-imageField").typedInput('value',value);
+            $("#node-input-typed-imageField").typedInput('value',imageField);
  
             // Show the inputField value in a typedinput element (dropdown with only 'msg' and 'str')
-            var value = $("#node-input-inputField").val() || 'payload';
+            var inputField = $("#node-input-inputField").val() || 'payload';
             $("#node-input-typed-inputField").typedInput({types:['msg', 'str']});
             $("#node-input-typed-inputField").typedInput('type','msg');
-            $("#node-input-typed-inputField").typedInput('value','text');
+            $("#node-input-typed-inputField").typedInput('value',inputField);
             
             // Show the outputField value in a typedinput element (dropdown with only 'msg')
-            var value = $("#node-input-outputField").val() || 'payload';
+            var outputField = $("#node-input-outputField").val() || 'payload';
             $("#node-input-typed-outputField").typedInput({types:['msg']});
             $("#node-input-typed-outputField").typedInput('type','msg');
-            $("#node-input-typed-outputField").typedInput('value',value);
-            
-            $("#node-input-cellContent").change(function() {
-                var cellContent = $("#node-input-cellContent").val();
-                
-                // When the cell content (combobox) changes, the new cell content type should be displayed as cell button text
-                if (node.selectedCellCoordinates) {
-                    var button = $("#node-input-button" + node.selectedCellCoordinates);
-                
-                    // The loaded cell content type should be displayed as the button text
-                    // Show the content type text corresponding to the new selected content type key
-                    var text = contentTypes[cellContent];
-                    button.text(text);
-                }
-                              
-                // When the cell content (combobox) changes, some elements should be hidden or showed
-                switch (cellContent) {
-                    case "none": // TODO deze moet weg
-                        $("#node-input-displayMode-div").hide();
-                        $("#node-input-typed-inputField-div").hide();
-                        $("#node-input-typed-outputField-div").hide();
-                        $("#node-input-font-div").hide();
-                        break;                    
-                    case "fps":
-                        $("#node-input-displayMode-div").show();
-                        $("#node-input-typed-inputField-div").hide();
-                        $("#node-input-typed-outputField-div").hide();
-                        $("#node-input-font-div").show();
-                        break;            
-                    case "res":
-                        $("#node-input-displayMode-div").show();
-                        $("#node-input-typed-inputField-div").hide();
-                        $("#node-input-typed-outputField-div").hide();
-                        $("#node-input-font-div").show();
-                        break;                    
-                    case "pt":
-                        $("#node-input-displayMode-div").show();
-                        $("#node-input-typed-inputField-div").hide();
-                        $("#node-input-typed-outputField-div").show();
-                        $("#node-input-font-div").hide();
-                        break;                    
-                    case "zoom":
-                        $("#node-input-displayMode-div").show();
-                        $("#node-input-typed-inputField-div").hide();
-                        $("#node-input-typed-outputField-div").show();
-                        $("#node-input-font-div").hide();
-                        break;                    
-                    case "text":
-                        $("#node-input-displayMode-div").show();
-                        $("#node-input-typed-inputField-div").show();
-                        $("#node-input-typed-outputField-div").hide();
-                        $("#node-input-font-div").show();
-                        break;                             
-                    case "stst":
-                        $("#node-input-displayMode-div").show();
-                        $("#node-input-typed-inputField-div").hide();
-                        $("#node-input-typed-outputField-div").show();
-                        $("#node-input-font-div").hide();
-                        break;                
-                }
-            });
+            $("#node-input-typed-outputField").typedInput('value',outputField);
         
             $("#node-input-size").elementSizer({
                 width: "#node-input-width",
                 height: "#node-input-height",
                 group: "#node-input-group"
             });
-            
-            // Make sure cell 11 is selected by default
-            $("#node-input-button11").click();
         },
         oneditsave: function() {
             var node = this;
@@ -232,19 +276,23 @@ debugger;
             // Copy the imageField value from the typedinput element to the imageField element
             var value = $("#node-input-typed-imageField").typedInput('value');
             $("#node-input-imageField").val(value);
-                      
+            
+            var listItems = $("#node-input-widgets-container").editableList('items');
             node.widgetsInfo = [];
-            var widgetTableRows = $("#node-input-widget-table").find('tbody').find('tr');
-debugger;
-            // For each table row, a new row will be added in the 'widgetsInfo' field (and the values will be copied from the table)
-            widgetTableRows.each(function(i) {
-                var widget = $(this);
-                node.widgetsInfo.push({
-                    type:       widget.find(".widgetinfo-type-element").val(),
-                    horizontal: widget.find(".widgetinfo-horizontal-element").val(),
-                    vertical:   widget.find(".widgetinfo-vertical-element").val(),
-                    alignment:  widget.find(".widgetinfo-alignment-element").val(),
-                 });
+            
+            listItems.each(function(i) {
+                var listItem = $(this);
+                var widgetInfo = {
+                    type        : listItem.find(".node-input-widget-type").val(),
+                    x           : listItem.find(".node-input-widget-x").val(),
+                    y           : listItem.find(".node-input-widget-y").val(),
+                    fontFamily  : listItem.find(".node-input-widget-fontFamily").val(),
+                    fontSize    : listItem.find(".node-input-widget-fontSize").val(),
+                    presetNumber: listItem.find(".node-input-widget-presetNumber").val(),
+                    ledColor    : listItem.find(".node-input-widget-ledColor").val()
+                };
+
+                node.widgetsInfo.push(widgetInfo);
             });
          }
     });
@@ -279,34 +327,12 @@ debugger;
         <input id="node-input-imageField" type="hidden">
     </div>
     </br>
-    <!-- TODO test -->
-    <div class="form-row">
-        <div id="jsoneditor" style="width: 400px; height: 400px;"></div>
-    </div>
-    </br>
     <div class="form-row" style="margin-bottom: 0px;">
         <label for="node-input-func"><i class="fa fa-th"></i> Widgets</label>
         <input type="hidden" id="node-input-func">
     </div>
     <div class="form-row">
-        <input type="hidden" id="node-input-widgets"/>
-        <div id="node-input-widget-container-div" style="border-radius: 5px; height: 280px; padding-bottom: 5px; border: 1px solid #ccc;">                  
-            <table id="node-input-widget-table" width="100%">
-                <thead>
-                    <tr>
-                        <th align="center" valign="middle" border="none" style="padding: 15px;">Widget type</th>               
-                        <th align="center" valign="middle" border="none" style="padding: 15px;">Horizontal (%)</th>
-                        <th align="center" valign="middle" border="none" style="padding: 15px;">Vertical (%)</th>
-                        <th align="center" valign="middle" border="none" style="padding: 15px;">Alignment</th>
-                    </tr>
-                </thead>
-                <tfoot>
-                </tfoot>
-                <tbody>
-                </tbody>
-            </table>
-        </div>
-        <a href="#" class="btn btn-mini" id="node-input-add-widget" style="margin-top: 4px;"><i class="fa fa-plus"></i> Add</a>
+        <ol id="node-input-widgets-container"></ol>
     </div>
     <div class="form-row">
         <label>&nbsp;</label>
@@ -333,29 +359,6 @@ debugger;
         <label for="node-input-typed-outputField"><i class="fa fa-list"></i> Output field</label>
         <input id="node-input-typed-outputField" type="text" style="width: 50%">
         <input id="node-input-outputField" type="hidden">
-    </div>
-    <div class="form-row" id="node-input-font-div">
-        <label>&nbsp;</label>
-        <label for="node-input-font"><i class="fa fa-clock-o"></i> Font</label>
-        <select id="node-input-font" style="width:120px;">
-            <option value="Arial">Arial</option>
-            <option value="Helvetica">Helvetica</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Times">Times</option>
-            <option value="Courier New">Courier New</option>
-            <option value="Courier">Courier</option>            
-            <option value="Verdana">Verdana</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Palatino">Palatino</option>
-            <option value="Garamond">Garamond</option>
-            <option value="Bookman">Bookman</option>
-            <option value="Comic Sans MS">Comic Sans MS</option>
-            <option value="Trebuchet MS">Trebuchet MS</option>
-            <option value="Arial Black">Arial Black</option>
-            <option value="Impact">Impact</option>
-        </select>
-        <input type="number" id="node-input-fontSize" style="width:70px;">
-        <span>px</span>
     </div>
     <div class="form-row">
         <input type="checkbox" id="node-input-aspectratio" style="display: inline-block; width: auto; vertical-align: top;">
