@@ -6,7 +6,6 @@
   "author": "Bart Butenaers (https://github.com/bartbutenaers)",
   "license": "Apache-2.0",
   "keywords": [
-    "node-red",
     "dashboard",
     "ui",
     "video",
@@ -24,8 +23,8 @@
   },
   "node-red": {
     "nodes": {
-      "ui-video": "video.js"
+      "ui_cam_viewer": "cam_viewer.js"
     }
   },
-  "main": "video.js"
+  "main": "cam_viewer.js"
 }
