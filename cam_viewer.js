@@ -17,7 +17,6 @@
 module.exports = function(RED) {
     var settings = RED.settings;
     
-    // TODO vraag: momenteel is de source in de config screen een dropdown (push/fetch).  Of kan dat beter een typedinput msg/str zijn ???
     // Mochten we een eigen typedinput ('URL') kunnen maken, dan was dat nog beter ...  Zie https://nodered.org/docs/api/ui/typedInput/#types-typedefinition   !!!!!
 
     function HTML(config) { 
@@ -26,17 +25,25 @@ module.exports = function(RED) {
         // The configuration is a Javascript object, which needs to be converted to a JSON string
         var configAsJson = JSON.stringify(config);
         
-        if (config.aspectratio === true) {
-            // Keep the aspect ratio, i.e. don't stretch the image (= leave the remaining svg area empty)
-            preserveAspectRatio = "xMidYMid meet";
-        }
-        else {
-            // Don't keep the aspect ratio, i.e. stretch the image to fit the entire svg area
-            preserveAspectRatio = "none";
-        }
+        switch (config.aspectratio) {
+            case "fit":
+                // Keep the aspect ratio and leave the remaining svg area empty.
+                // There exist multiple (X and Y) options, but we will put the image always in the center...
+                preserveAspectRatio = "xMidYMid meet";
+                break;
+            case "crop":
+                // Keep the aspect ratio and crop part of the image, to fit it in the shortest dimension.
+                // There exist multiple (X and Y) options, but we will put the image always in the center...
+                // TODO deze doet precies hetzelfde als fit ...
+                preserveAspectRatio = "xMidYMid slice";
+                break;
+            case "stretch":
+                // Don't keep the aspect ratio, i.e. stretch the image in both directions to fit the entire svg area
+                preserveAspectRatio = "none";
+                break;
+        }            
 
         // TODO in documentatie zetten dat image in SVG enkel JPEG en PNG supporteert
-        // TODO by default een SVG text 'no image available' tonen
         var html = String.raw`
         <svg id="cam_svg_` + config.id + `" height="100%" width="100%" ng-init='init(` + configAsJson + `)' xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="border: 1px solid black;">
             <defs id="cam_def_` + config.id + `"></defs>        
@@ -677,6 +684,7 @@ module.exports = function(RED) {
                                     break;
                                     
                                 case "fetch":
+                                debugger;
                                     // Let a 'video' element decode the video, but we won't show the 'video' via the DOM tree to the user.
                                     // Instead we will draw all decoded images into a canvas, which is shown via the DOM tree to the user.
                                     // This allows us to draw all kind of stuff on top of the video.
@@ -688,13 +696,19 @@ module.exports = function(RED) {
                                     video.loop = false;
                                     video.muted = true;
                                     
+                                    // TODO als we dit opzetten verschijnt er : 
+                                    // Access to video at 'https://www.w3schools.com/html/mov_bbb.mp4' from origin 'http://localhost:1880' has been blocked by CORS policy: 
+                                    // No 'Access-Control-Allow-Origin' header is present on the requested resource.
+                                    //video.crossOrigin = "Anonymous"
+// Other ideas
+// https://jsfiddle.net/aRRku/2/                                    
                                     video.onerror = function(e){
                                         // TODO
                                     }
                                     
                                     video.oncanplay = function(event){ // this is a referance to the video
-                                        // the video may not match the canvas size so find a scale to fit
-                                        $scope.videoContainer.scale = Math.min($scope.canvas.width / this.videoWidth, $scope.canvas.height / this.videoHeight); 
+                                        // the video may not match the canvas size so find a scale to fit 
+                                        //$scope.videoContainer.scale = Math.min($scope.canvas.width / this.videoWidth, $scope.canvas.height / this.videoHeight); 
                                         $scope.videoContainer.ready = true;
                                         // the video can be played so let the browser execute our callback funciton code on the next available screen repaint.
                                         // By calling requestAnimationFrame() repeatedly to create an animation, we are assured that our animation code is called 
@@ -712,6 +726,17 @@ module.exports = function(RED) {
                                     
                                     // TODO autoplay ???
                                     $scope.videoContainer.video.play();
+                                    
+                                    // Beside a non-visual 'video' element, we also need a non-visual 'image' element.
+                                    // Since the width and height of the SVG image element is not yet final at this moment, we will set the size afterwards
+                                    $scope.canvasContainer = document.createElement('canvas');
+                                    
+                                    // When testing as URL:  https://www.w3schools.com/html/mov_bbb.mp4
+                                    // Then DOMException occurs: Failed to execute 'toDataURL' on 'HTMLCanvasElement': Tainted canvases may not be exported.
+                                    // Seems to be a security problem (https://stackoverflow.com/questions/22710627/tainted-canvases-may-not-be-exported).
+                                    // TODO is this secure enough ????
+                                    $scope.canvasContainer.setAttribute("crossOrigin", "Anonymous");
+                                    $scope.canvasContainer.crossOrigin = "Anonymous";
                             }
                         }
                         
@@ -742,26 +767,39 @@ module.exports = function(RED) {
                             // Update image
                             // ==================================================================================
                             
-                            var image;
+                           // var image;
+                           var url;
                             
                             // only draw if loaded and ready
                             if($scope.videoContainer !== undefined && $scope.videoContainer.ready){ 
                                 // The decoded video image should be resized to fit the canvas.
                                 // See https://sdqali.in/blog/2013/10/03/fitting-an-image-in-to-a-canvas-object/
-                                image = $scope.videoContainer.video;
+                                //image = $scope.videoContainer.video;
+                                
+                                    // Make sure the canvas size is always equal to the size of the SVG image size
+                                    // TODO is de video size correct???  Zou zelfde moeten zijn als de source video size??
+                                    $scope.canvasContainer.width = $scope.videoContainer.video.videoWidth;
+                                    $scope.canvasContainer.height = $scope.videoContainer.video.videoHeight;
+                                    
+                                    var ctx = $scope.canvasContainer.getContext('2d');
+                                    ctx.drawImage($scope.videoContainer.video, 0, 0, $scope.canvasContainer.width, $scope.canvasContainer.height);
+                                    
+                                    // Get an URL for the base64 encoded binary data of the canvas image
+                                    url = $scope.canvasContainer.toDataURL("image/png"); // Also JPG is supported
                             }
                             else {
                                 // When a (base64 encoded) image is supplied in msg.payload, then show it in the SVG image element
                                 if ($scope.msg.payload) {
                                     // TODO aan server side controleren 'bij push' dat de message payload een base64 encoded string bevat
-                                    var url = 'data:image/jpeg;base64,' + $scope.msg.payload;
-                                    $scope.imgElement.setAttributeNS('http://www.w3.org/1999/xlink', 'href', url);
+                                    url = 'data:image/jpeg;base64,' + $scope.msg.payload;
                                 }
                             }
                             
+                            $scope.imgElement.setAttributeNS('http://www.w3.org/1999/xlink', 'href', url);
+                            
                             // TODO wat als image = null??  Dan moet eigenlijk bovenstaane execution time berekening ook niet gebueren.  
                             
-                            
+                            /*
                             if ($scope.config.source === "fetch") {
                                 var imageWidth = $scope.videoContainer.video.videoWidth;
                                 var imageHeight = $scope.videoContainer.video.videoHeight;
@@ -822,13 +860,13 @@ module.exports = function(RED) {
                                         break;
                                 }
                             }
-
+*/
                             if ($scope.config.source === "fetch") {
                                 // We should only fetch the next image, as soon as the browser is ready to do that.
                                 // This is not required when the images are pushed (via websocket), since then the 
                                 // Node-RED flow determines when the next image arrives.
                                 requestAnimationFrame(updateSvgImage);
-                            }*/
+                            }
                         }
 
                         $scope.$watch('msg', function(msg) {
@@ -976,14 +1014,14 @@ module.exports = function(RED) {
     //     ui: { path: "mypath" },
     var uiPath = ((RED.settings.ui || {}).path) || 'ui';
 	
-    // Make all the static resources from this node public available (i.e. no_camera.png file).
+    // Make all the static resources from this node public available (i.e. no_camera.png file), for the client-side dashboard widget.
     RED.httpNode.get('/' + uiPath + '/cam_viewer/resources/*', function(req, res){
         var options = {
             root: __dirname + '/resources/',
             dotfiles: 'deny'
         };
        
-        // Send the requested file to the client (in this case it will be heatmap.min.js)
+        // Send the requested file to the client
         res.sendFile(req.params[0], options)
     });
 }
