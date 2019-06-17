@@ -36,9 +36,9 @@
             source: {value: "fetch"},
             font: {value: "Arial"},
             fontSize: {value: 12},
-            aspectratio: {value: true},
+            aspectratio: {value: "stretch"},
             autoplay: {value: true},
-            widgetsInfo: {value:[{ type:"text", x: 50, y: 50 }]}
+            widgetsInfo: {value:[ ]}
         },
         inputs:1,
         outputs:1,
@@ -60,14 +60,14 @@
                 return propertyRow;
             }
             
-            $('#node-input-widgets-container').css('min-height','300px').css('min-width','400px').editableList({
+            $('#node-input-widgets-container').css('min-height','350px').css('min-width','400px').editableList({
                 addItem: function(container, i, opt) {
                     var widgetInfo = opt;
                     
                     // Here we could in the future migrate old rules ...
                     
                     // By default the list items will be compressed, so show the expand icon
-                    var expandIcon = "fa fa-expand";
+                    var expandIcon = "fa fa-angle-right";
 
                     // When widgetInfo === {} then we have a new list item (i.e. user pressed the addItem button)
                     if (Object.keys(widgetInfo).length === 0) {
@@ -76,6 +76,7 @@
                             type        : "text",
                             x           : 50,
                             y           : 50,
+                            displayMode : "always",
                             fontFamily  : "Arial",
                             fontSize    : 12,
                             presetNumber: 1,
@@ -84,7 +85,7 @@
                         
                         // New list items should be expanded by default, so show a compress icon.
                         // This way the user becomes aware which properties the new widget offers...
-                        expandIcon = "fa fa-compress";
+                        expandIcon = "fa fa-angle-down";
                     }
                     
                     container.css({
@@ -119,11 +120,11 @@
                         e.preventDefault();
                         
                         // Switch the icon between expand and compress
-                        if (this.firstElementChild.className === "fa fa-expand") {
-                            this.firstElementChild.className = "fa fa-compress";
+                        if (this.firstElementChild.className === "fa fa-angle-right") {
+                            this.firstElementChild.className = "fa fa-angle-down";
                         }
                         else {
-                            this.firstElementChild.className = "fa fa-expand";
+                            this.firstElementChild.className = "fa fa-angle-right";
                         }
                     
                         // Only show the relevant widget type properties
@@ -141,6 +142,13 @@
                     var yField = $('<input/>', {class: "node-input-widget-y", style: "width:52px; margin-right:10px;", type: "number", min: "1", max: "100"}).appendTo(yPositionRow);
                     yField.val(widgetInfo.y);
                     $('<span/>').text('%').appendTo(yPositionRow);
+
+                    // Add a 'display mode' property row
+                    var displayModeRow = addPropertyRow(container, "Display mode");
+                    displayModeField = $('<select/>', {class: "node-input-widget-displayMode", style:"width:160px; margin-right:10px;"}).appendTo(displayModeRow);
+                    displayModeField.append($("<option></option>").val('always').text("Always"));
+                    displayModeField.append($("<option></option>").val('hoover').text("On mouse hoover"));
+                    displayModeField.val(widgetInfo.displayMode);
                         
                     // Add a 'font family' property row
                     var fontFamilyRow = addPropertyRow(container, "Font family");
@@ -189,6 +197,7 @@
                         
                         xPositionRow.hide();
                         yPositionRow.hide();
+                        displayModeRow.hide();
                         fontFamilyRow.hide();
                         fontSizeRow.hide();
                         presetNumberRow.hide();
@@ -196,10 +205,11 @@
                         
                         // When the button shows a 'compress' icon, this means that the list item is currently expanded
                         // (i.e. that all relevant property rows should be visible)
-                        if (expandButton.children()[0].className === "fa fa-compress") {
-                            // The X and Y location property rows should be visible for all widget types
+                        if (expandButton.children()[0].className === "fa fa-angle-down") {
+                            // Some rows should be visible for all widget types
                             xPositionRow.show();
                             yPositionRow.show();
+                            displayModeRow.show();
                         
                             // Some other property rows should only be visible for specific widget types
                             switch (widgetType) {
@@ -251,19 +261,8 @@
             $("#node-input-typed-imageField").typedInput({types:['msg']});
             $("#node-input-typed-imageField").typedInput('type','msg');
             $("#node-input-typed-imageField").typedInput('value',imageField);
- 
-            // Show the inputField value in a typedinput element (dropdown with only 'msg' and 'str')
-            var inputField = $("#node-input-inputField").val() || 'payload';
-            $("#node-input-typed-inputField").typedInput({types:['msg', 'str']});
-            $("#node-input-typed-inputField").typedInput('type','msg');
-            $("#node-input-typed-inputField").typedInput('value',inputField);
-            
-            // Show the outputField value in a typedinput element (dropdown with only 'msg')
-            var outputField = $("#node-input-outputField").val() || 'payload';
-            $("#node-input-typed-outputField").typedInput({types:['msg']});
-            $("#node-input-typed-outputField").typedInput('type','msg');
-            $("#node-input-typed-outputField").typedInput('value',outputField);
         
+            // Make the Node-RED graphical widget size tool available in the config screen
             $("#node-input-size").elementSizer({
                 width: "#node-input-width",
                 height: "#node-input-height",
@@ -279,13 +278,15 @@
             
             var listItems = $("#node-input-widgets-container").editableList('items');
             node.widgetsInfo = [];
-            
+      
+            // Store the list items (from the editableList) into 'this' node
             listItems.each(function(i) {
                 var listItem = $(this);
                 var widgetInfo = {
                     type        : listItem.find(".node-input-widget-type").val(),
                     x           : listItem.find(".node-input-widget-x").val(),
                     y           : listItem.find(".node-input-widget-y").val(),
+                    displayMode : listItem.find(".node-input-widget-displayMode").val(),
                     fontFamily  : listItem.find(".node-input-widget-fontFamily").val(),
                     fontSize    : listItem.find(".node-input-widget-fontSize").val(),
                     presetNumber: listItem.find(".node-input-widget-presetNumber").val(),
@@ -335,34 +336,12 @@
         <ol id="node-input-widgets-container"></ol>
     </div>
     <div class="form-row">
-        <label>&nbsp;</label>
-        <label for="node-input-cellContent"><i class="fa fa-th"></i> Cell content</label>
-        <select id="node-input-cellContent">              
+        <label for="node-input-aspectratio"><i class="fa fa-arrows-alt"></i> Aspect ratio</label>
+        <select id="node-input-aspectratio">
+            <option value="stretch">Stretch</option>
+            <option value="crop">Fit and crop</option>
+            <option value="fit">Fit without crop</option>
         </select>
-    </div>
-    <div class="form-row" id="node-input-displayMode-div">
-        <label>&nbsp;</label>
-        <label for="node-input-displayMode"><i class="fa fa-mouse-pointer"></i> Display mode</label>
-        <select id="node-input-displayMode">
-            <option value="always">Always</option>
-            <option value="hoover">On mouse hoover</option>                
-        </select>
-    </div>
-    <div class="form-row" id="node-input-typed-inputField-div">
-        <!--<label>&nbsp;</label>-->
-        <label for="node-input-typed-inputField"><i class="fa fa-list"></i> Input field</label>
-        <input id="node-input-typed-inputField" type="text" style="width: 50%">
-        <input id="node-input-inputField" type="hidden">
-    </div>
-    <div class="form-row" id="node-input-typed-outputField-div">
-        <label>&nbsp;</label>
-        <label for="node-input-typed-outputField"><i class="fa fa-list"></i> Output field</label>
-        <input id="node-input-typed-outputField" type="text" style="width: 50%">
-        <input id="node-input-outputField" type="hidden">
-    </div>
-    <div class="form-row">
-        <input type="checkbox" id="node-input-aspectratio" style="display: inline-block; width: auto; vertical-align: top;">
-        <label for="node-input-aspectratio" style="width:50%;"> Keep aspect ratio</label>
     </div>
     <div class="form-row">
         <input type="checkbox" id="node-input-autoplay" style="display: inline-block; width: auto; vertical-align: top;">
@@ -375,5 +354,35 @@
     </div>
 </script>
 <script type="text/x-red" data-help-name="ui_cam_viewer">
-    <p>A Node-RED widget node to view camera footage in the dashboard.</p>
+    <p>A Node-RED widget node to view camera footage in the dashboard. For more information, see my <a target="_blank" href="https://github.com/bartbutenaers/node-red-contrib-ui-camera-viewer">Github</a> page.</p>
+    <p><strong>Source:</strong><br/>
+    The images can arrive from two different kind of sources:
+    <ul>
+        <li><code>URL (fetch):</code> Specify an URL from which the dashboard can fetch the images by itself.  The URL can be fixed text or dynamically specified via the input message.</li>
+        <li><code>Message (push):</code> Specify in which input message field the images will arrive, so the images need to be passed via input messages.  While this is very simple to setup, be aware the dashboard might become unresponsive!</li>
+    </ul></p>
+    <p><strong>Widgets:</strong><br/>
+    Optionally widgets can be specified, which will be displayed on top of the camera images.  The x and y position of every widget needs to be specified in percentages.
+    Following widgets are available:
+    <ul>
+        <li><code>FPS:</code> Shows the number of Frames Per Second, i.e. the speed at which the images are displayed in the dashboard.  Note that when the browser is overloaded, some images will be ignored (i.e. not displayed).</li>
+        <li><code>Resolution:</code> Shows the resolution (width x height) of the images that arrive.  Caution: this is not the resolution at which the images are displayed!</li>
+        <li><code>Pan/Tilt:</code> Shows a pan-tilt control, to move the camera around.  In the middle a 'home' button will be showed, to move the camera to its home position.  When a button is clicked, an output message will be send on the node output.</li>
+        <li><code>Zoom:</code> Shows a zoom-in/out control.  When a button is clicked, an output message will be send on the node output.</li>
+        <li><code>Preset:</code> Shows a preset button, to move the camera to this preset position.  A number can be specified, to have a visual difference between multiple preset buttons.  When the button is clicked, an output message will be send on the node output.</li>
+        <li><code>Start/stop:</code> Shows a start/stop control, which toggles automatically between both states.  When the button is clicked, an output message will be send on the node output.</li>
+        <li><code>Zoom:</code> Shows a zoom-in/out control.  When a button is clicked, an output message will be send on the node output.</li>
+        <li><code>LED light:</code> Shows a led light, filled with the specified color.</li>
+        <li><code>Text:</code> Shows a free text.  The free text can be fixed text or dynamically specified via the input message</li>
+    </ul></p>
+    <p><strong>Aspect ratio:</strong><br/>
+    Most of the time, the size of the image will not correspond to the size of the displayed image.  Use this option to specify how the image needs to be displayed:
+    <ul>
+        <li><code>Stretch:</code> The image will be stretched in both directions (X and Y) to fit the available space.  This means that the aspect ratio will not be preserved, and images might be proportional distorted.</li>
+        <li><code>Fit and crop:</code> The image will only be stretched in the direction of its shortest size.  The aspect ratio will be preserved, so part of the image (in the direction of its largest size) will be cropped.  This means that parts of the images won't be visible.</li>
+        <li><code>Fit without crop:</code> The image will only be stretched in the direction of its largest size.  The aspect ratio will be preserved, so the entire image will be visible.  But there will be empty areas along the image.</li>
+    </ul></p>
+    <p><strong>Start playing automatically:</strong><br/>
+    When this option is enabled, the widget will start playing as soon as images are availble.
+    </p>
 </script>
