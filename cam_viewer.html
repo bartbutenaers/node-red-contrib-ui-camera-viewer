@@ -31,14 +31,31 @@
                 }},
             height: {value: 0},
             name: {value: ''},
-            imageField: {value: "payload"},
-            url: {value: ''},
-            source: {value: "fetch"},
+            source: {value: "push"},
+            pushSource: {value: {}, validate:function(v) {
+                // Only required when image source is "push"
+                return !($("#node-input-source").val() === "push") || v;
+            }},
+            pullSource: {value: {}, validate:function(v) {
+                // Only required when image source is "pull"
+                return !($("#node-input-source").val() === "pull") || v;
+            }},
             font: {value: "Arial"},
             fontSize: {value: 12},
             aspectratio: {value: "stretch"},
             autoplay: {value: true},
-            widgetsInfo: {value:[ ]}
+            widgetsInfo: {value:[ ], validate:function(widgetsInfo) {
+                // Every widget in the array should have a unique name!
+                for(var i = 0; i < widgetsInfo.length; i++) {
+                    for(var j = i; j < widgetsInfo.length; j++) {
+                        if(i != j && widgetsInfo[i].name === widgetsInfo[j].name) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }},
+            nextNumber: {value: 0}
         },
         inputs:1,
         outputs:1,
@@ -71,17 +88,26 @@
 
                     // When widgetInfo === {} then we have a new list item (i.e. user pressed the addItem button)
                     if (Object.keys(widgetInfo).length === 0) {
-                        // Initialize new items in the list
+                        // Initialize new items in the list.
+                        // By default the widget will get a unique name
                         widgetInfo = {
+                            name        : "widget_" + node.nextNumber, 
                             type        : "text",
                             x           : 50,
                             y           : 50,
-                            displayMode : "always",
+                            displayMode : "visible",
+                            label       : "",
+                            icon        : "",
                             fontFamily  : "Arial",
                             fontSize    : 12,
+                            fontColor   : '#ffffff', // Default white
                             presetNumber: 1,
-                            ledColor    : "green"
+                            ledColor    : "green",
+                            output      : ""
                         };
+                        
+                        // Increment the next widget number
+                        node.nextNumber++;
                         
                         // New list items should be expanded by default, so show a compress icon.
                         // This way the user becomes aware which properties the new widget offers...
@@ -109,7 +135,7 @@
                     widgetTypeField.append($("<option></option>").val('fps').text("FPS"));
                     widgetTypeField.append($("<option></option>").val('res').text("Resolution"));
                     widgetTypeField.append($("<option></option>").val('pt').text("Pan/Tilt"));
-                    widgetTypeField.append($("<option></option>").val('zoom').text("Zoom"));
+                    widgetTypeField.append($("<option></option>").val('icon').text("Icon"));
                     widgetTypeField.append($("<option></option>").val('preset').text("Preset"));
                     widgetTypeField.append($("<option></option>").val('stst').text("Start/stop"));
                     widgetTypeField.append($("<option></option>").val('led').text("LED light"));
@@ -131,6 +157,12 @@
                         widgetTypeField.change();
                     });
                     
+                    // Add a 'name' property row
+                    var nameRow = addPropertyRow(container, "Name");
+                    var nameField = $('<input/>', {class: "node-input-widget-name", style: "width:160px; margin-right:10px;", type: "text"}).appendTo(nameRow);
+                    nameField.val(widgetInfo.name);
+                    $('<span/>').text('%').appendTo(nameField);
+                    
                     // Add a 'X position' property row
                     var xPositionRow = addPropertyRow(container, "X position");
                     var xField = $('<input/>', {class: "node-input-widget-x", style: "width:52px; margin-right:10px;", type: "number", min: "1", max: "100"}).appendTo(xPositionRow);
@@ -146,9 +178,25 @@
                     // Add a 'display mode' property row
                     var displayModeRow = addPropertyRow(container, "Display mode");
                     displayModeField = $('<select/>', {class: "node-input-widget-displayMode", style:"width:160px; margin-right:10px;"}).appendTo(displayModeRow);
-                    displayModeField.append($("<option></option>").val('always').text("Always"));
-                    displayModeField.append($("<option></option>").val('hoover').text("On mouse hoover"));
+                    displayModeField.append($("<option></option>").val('visible').text("Visible"));
+                    displayModeField.append($("<option></option>").val('invisible').text("Invisible"));
+                    displayModeField.append($("<option></option>").val('hoover').text("Visible when hoovering"));
                     displayModeField.val(widgetInfo.displayMode);
+                    
+                    // The above rows are available for ALL widget types, but the below rows are only available for SOME widget types
+                    
+                    // Add a 'label' property row
+                    var labelRow = addPropertyRow(container, "Label");
+                    var labelField = $('<input/>', {class: "node-input-widget-label", style: "width:160px; margin-right:10px;", type: "text"}).appendTo(labelRow);
+                    labelField.val(widgetInfo.label);
+                    $('<span/>').text('%').appendTo(labelField);
+                    
+                    // Add an 'icon' property row
+                    // TODO Can we show a selection window, to show all icons from https://fontawesome.com/v4.7.0/cheatsheet/
+                    var iconRow = addPropertyRow(container, "Icon");
+                    var iconField = $('<input/>', {class: "node-input-widget-icon", style: "width:160px; margin-right:10px;", type: "text", placeholder: "E.g. &#xf1fd;"}).appendTo(iconRow);
+                    iconField.val(widgetInfo.icon);
+                    $('<span/>').text('%').appendTo(iconField);
                         
                     // Add a 'font family' property row
                     var fontFamilyRow = addPropertyRow(container, "Font family");
@@ -173,6 +221,12 @@
                     var fontSizeField = $('<input/>', {class: "node-input-widget-fontSize", style: "width:50px; margin-right:5px;", type: "number", min: "1", max: "20"}).appendTo(fontSizeRow);
                     $('<span/>').text('px').appendTo(fontSizeRow);
                     fontSizeField.val(widgetInfo.fontSize);
+                    
+                    // Add a 'font color' property row
+                    var fontColorRow = addPropertyRow(container, "Font color");
+                    var fontColorField = $('<input/>', {class: "node-input-widget-fontColor", style: "width:50px; margin-right:5px;", type: "color"}).appendTo(fontColorRow);
+                    $('<span/>').text('px').appendTo(fontColorRow);
+                    fontColorField.val(widgetInfo.fontColor);
                    
                     // Add a 'preset number' property row
                     var presetNumberRow = addPropertyRow(container, "Preset number");
@@ -191,22 +245,33 @@
                     ledColorField.append($("<option></option>").val('grey').text("Grey"));
                     ledColorField.val(widgetInfo.ledColor);
 
+                    // Add an 'output' property row
+                    var outputRow = addPropertyRow(container, "Output");
+                    var outputField = $('<input/>', {class: "node-input-widget-output", style: "width:160px; margin-right:10px;", type: "text"}).appendTo(outputRow);
+                    outputField.val(widgetInfo.output);
+
                     // When the widget type changes, only the relevant property rows should be visible
                     widgetTypeField.change(function() {
                         var widgetType = $(this).val();
                         
+                        nameRow.hide();
                         xPositionRow.hide();
                         yPositionRow.hide();
                         displayModeRow.hide();
+                        labelRow.hide();
+                        iconRow.hide();
                         fontFamilyRow.hide();
                         fontSizeRow.hide();
+                        fontColorRow.hide();
                         presetNumberRow.hide();
                         ledColorRow.hide();
+                        outputRow.hide();
                         
                         // When the button shows a 'compress' icon, this means that the list item is currently expanded
                         // (i.e. that all relevant property rows should be visible)
                         if (expandButton.children()[0].className === "fa fa-angle-down") {
                             // Some rows should be visible for all widget types
+                            nameRow.show();
                             xPositionRow.show();
                             yPositionRow.show();
                             displayModeRow.show();
@@ -216,18 +281,25 @@
                                 case 'fps':
                                     fontFamilyRow.show();
                                     fontSizeRow.show();
+                                    fontColorRow.show();
                                     break;
                                 case 'res':
                                     fontFamilyRow.show();
-                                    fontSizeRow.show();                                
+                                    fontSizeRow.show(); 
+                                    fontColorRow.show();                                    
                                     break;
                                 case 'pt':
                                     break;
-                                case 'zoom':
+                                case 'icon':
+                                    fontSizeRow.show();
+                                    fontColorRow.show();
+                                    iconRow.show();
+                                    outputRow.show();
                                     break;
                                 case 'preset':
                                     fontFamilyRow.show();
                                     fontSizeRow.show();
+                                    fontColorRow.show();
                                     presetNumberRow.show();
                                     break;
                                 case 'stst':
@@ -236,8 +308,10 @@
                                     ledColorRow.show();
                                     break;
                                 case 'text':
+                                    labelRow.show();
                                     fontFamilyRow.show();
-                                    fontSizeRow.show();                            
+                                    fontSizeRow.show();
+                                    fontColorRow.show();
                                     break;
                             }
                         }
@@ -254,13 +328,33 @@
             for (var i=0; i<this.widgetsInfo.length; i++) {
                 var widgetInfo = this.widgetsInfo[i];
                 $("#node-input-widgets-container").editableList('addItem', widgetInfo);
-            }      
-            
-            // Show the imageField value in a typedinput element (dropdown with only 'msg')
-            var imageField = $("#node-input-imageField").val() || 'payload';
-            $("#node-input-typed-imageField").typedInput({types:['msg']});
-            $("#node-input-typed-imageField").typedInput('type','msg');
-            $("#node-input-typed-imageField").typedInput('value',imageField);
+            }
+        debugger    
+            // Show the pushSource value in a typedinput element (dropdown with only 'msg')
+            $("#node-input-typed-pushSource").typedInput({types: ['msg']});
+            $("#node-input-typed-pushSource").typedInput('type', node.pushSource.type || 'msg');
+            $("#node-input-typed-pushSource").typedInput('value', node.pushSource.value || 'payload');       
+
+            // Show the pullSource value in a typedinput element (dropdown with only 'msg' and 'str')
+            $("#node-input-typed-pullSource").typedInput({types: ['msg', 'str']});
+            $("#node-input-typed-pullSource").typedInput('type', node.pullSource.type || 'msg');
+            $("#node-input-typed-pullSource").typedInput('value', node.pullSource.value  || 'payload');             
+
+            // When the 'source' combobox value changes, only the corresponding input fields should be displayed
+            $("#node-input-source").change(function() {
+                var source = $("#node-input-source").val();
+
+                switch (source) {
+                    case "pull":
+                        $(".pull-row").show();
+                        $(".push-row").hide();
+                        break;
+                    case "push":
+                        $(".push-row").show();
+                        $(".pull-row").hide();
+                        break;
+                }
+            });                                            
         
             // Make the Node-RED graphical widget size tool available in the config screen
             $("#node-input-size").elementSizer({
@@ -271,10 +365,20 @@
         },
         oneditsave: function() {
             var node = this;
-            
-            // Copy the imageField value from the typedinput element to the imageField element
-            var value = $("#node-input-typed-imageField").typedInput('value');
-            $("#node-input-imageField").val(value);
+        debugger    
+            // Store both the pushSource typed input's type and value, from the typed input element to the pushSource element
+            var pushSource = $("#node-input-typed-pushSource");
+            node.pushSource = {
+                type: pushSource.typedInput('type'),
+                value: pushSource.typedInput('value')
+            };
+
+            // Store both the pullSource typed input's type and value, from the typedinput element to the pullSource element
+            var pullSource = $("#node-input-typed-pullSource");
+            node.pullSource = {
+                type: pullSource.typedInput('type'),
+                value: pullSource.typedInput('value')
+            };
             
             var listItems = $("#node-input-widgets-container").editableList('items');
             node.widgetsInfo = [];
@@ -283,18 +387,26 @@
             listItems.each(function(i) {
                 var listItem = $(this);
                 var widgetInfo = {
+                    name        : listItem.find(".node-input-widget-name").val(),
                     type        : listItem.find(".node-input-widget-type").val(),
                     x           : listItem.find(".node-input-widget-x").val(),
                     y           : listItem.find(".node-input-widget-y").val(),
                     displayMode : listItem.find(".node-input-widget-displayMode").val(),
+                    label       : listItem.find(".node-input-widget-label").val(),
+                    icon        : listItem.find(".node-input-widget-icon").val(),
                     fontFamily  : listItem.find(".node-input-widget-fontFamily").val(),
                     fontSize    : listItem.find(".node-input-widget-fontSize").val(),
+                    fontColor   : listItem.find(".node-input-widget-fontColor").val(),
                     presetNumber: listItem.find(".node-input-widget-presetNumber").val(),
-                    ledColor    : listItem.find(".node-input-widget-ledColor").val()
+                    ledColor    : listItem.find(".node-input-widget-ledColor").val(),
+                    output      : listItem.find(".node-input-widget-output").val()
                 };
 
                 node.widgetsInfo.push(widgetInfo);
             });
+            
+            // Store the next number in the (hidden) input field, so Node-RED can find it there ...
+            $("#node-input-nextNumber").val(node.nextNumber);
          }
     });
 </script>
@@ -312,25 +424,27 @@
     </div>
     </br>
     <div class="form-row">
-        <label for="node-input-source"><i class="fa fa-clock-o"></i> Source</label>
+        <label for="node-input-source"><i class="fa fa-sign-in"></i> Source</label>
         <select id="node-input-source">
-            <option value="fetch">URL (fetch)</option>
+            <option value="pull">URL (pull)</option>
             <option value="push">Message (push)</option>
         </select>
     </div>
-    <div class="form-row source-fetch">
-        <label for="node-input-url"><i class="fa fa-globe"></i> URL</label>
-        <input id="node-input-url" type="text" placeholder="http://">
+    <div class="form-row pull-row">
+        <label for="node-input-typed-pullSource"><i class="fa fa-globe"></i> URL</label>
+        <input id="node-input-typed-pullSource" type="text" style="width: 70%">
+        <input id="node-input-pullSource" type="hidden">
     </div>
-    <div class="form-row source-push">
-        <label for="node-input-typed-imageField"><i class="fa fa-list"></i> Image field</label>
-        <input id="node-input-typed-imageField" type="text" style="width: 70%">
-        <input id="node-input-imageField" type="hidden">
+    <div class="form-row push-row">
+        <label for="node-input-typed-pushSource"><i class="fa fa-file-image-o"></i> Image</label>
+        <input id="node-input-typed-pushSource" type="text" style="width: 70%">
+        <input id="node-input-pushSource" type="hidden">
     </div>
     </br>
     <div class="form-row" style="margin-bottom: 0px;">
         <label for="node-input-func"><i class="fa fa-th"></i> Widgets</label>
         <input type="hidden" id="node-input-func">
+        <input id="node-input-nextNumber" type="hidden">
     </div>
     <div class="form-row">
         <ol id="node-input-widgets-container"></ol>
@@ -358,12 +472,12 @@
     <p><strong>Source:</strong><br/>
     The images can arrive from two different kind of sources:
     <ul>
-        <li><code>URL (fetch):</code> Specify an URL from which the dashboard can fetch the images by itself.  The URL can be fixed text or dynamically specified via the input message.</li>
+        <li><code>URL (pull):</code> Specify an URL from which the dashboard can pull/fetch the images by itself.  The URL can be fixed text or dynamically specified via the input message.</li>
         <li><code>Message (push):</code> Specify in which input message field the images will arrive, so the images need to be passed via input messages.  While this is very simple to setup, be aware the dashboard might become unresponsive!</li>
     </ul></p>
     <p><strong>Widgets:</strong><br/>
     Optionally widgets can be specified, which will be displayed on top of the camera images.  The x and y position of every widget needs to be specified in percentages.
-    Following widgets are available:
+    Following widget types are available:
     <ul>
         <li><code>FPS:</code> Shows the number of Frames Per Second, i.e. the speed at which the images are displayed in the dashboard.  Note that when the browser is overloaded, some images will be ignored (i.e. not displayed).</li>
         <li><code>Resolution:</code> Shows the resolution (width x height) of the images that arrive.  Caution: this is not the resolution at which the images are displayed!</li>
